@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -34,6 +35,15 @@ public class DocumentExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleUnreadableBody(
             HttpMessageNotReadableException exception, HttpServletRequest request) {
         return badRequest("Request body is invalid.", request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleFileTooLarge(HttpServletRequest request) {
+        HttpStatus status = HttpStatus.PAYLOAD_TOO_LARGE;
+        return ResponseEntity.status(status).body(Map.of(
+                "timestamp", Instant.now().toString(), "status", status.value(),
+                "error", status.getReasonPhrase(), "message", "Fichier trop volumineux (10 Mo maximum).",
+                "path", request.getRequestURI()));
     }
 
     private ResponseEntity<Map<String, Object>> badRequest(String message, HttpServletRequest request) {

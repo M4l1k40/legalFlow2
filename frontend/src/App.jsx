@@ -30,6 +30,7 @@ import LawyerAppointmentsPage from './pages/lawyer/LawyerAppointmentsPage';
 import LawyerDeadlinesPage from './pages/lawyer/LawyerDeadlinesPage';
 import LawyerInvoicesPage from './pages/lawyer/LawyerInvoicesPage';
 import LawyerJudicialPage from './pages/lawyer/LawyerJudicialPage';
+import LawyerDocumentsPage from './pages/lawyer/LawyerDocumentsPage';
 
 export default function App() {
   return (
@@ -65,7 +66,7 @@ export default function App() {
                 <Route path="deadlines" element={<LawyerDeadlinesPage />} />
                 <Route path="invoices" element={<LawyerInvoicesPage />} />
                 <Route path="appointments" element={<LawyerAppointmentsPage />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="lawyer.nav.documents" />} />
+                <Route path="documents" element={<LawyerDocumentsPage />} />
                 <Route path="consultations" element={<LawyerConsultationsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
               </Route>

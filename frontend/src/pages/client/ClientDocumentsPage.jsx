@@ -2,22 +2,18 @@ import { useEffect, useState } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import AsyncState from '../../components/common/AsyncState';
+import { secondaryButton } from '../../components/common/buttonStyles';
 import useApi from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { downloadDocumentFile } from '../../utils/downloadFile';
+import { describeDocumentError, formatFileSize } from '../../utils/documents';
 
 function formatDate(value) {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime())
     ? date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : '—';
-}
-
-function formatSize(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '';
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
 // Le document-service n'a pas de « liste de mes documents » : on lit ceux de chaque dossier du client.
@@ -27,6 +23,8 @@ export default function ClientDocumentsPage() {
   const casesState = useApi('/api/cases');
   const [docs, setDocs] = useState({ loading: true, error: null, groups: [] });
   const [reload, setReload] = useState(0);
+  const [downloading, setDownloading] = useState(null);
+  const [downloadError, setDownloadError] = useState(null);
 
   useEffect(() => {
     if (authLoading || !isAuthenticated || casesState.loading) return undefined;
@@ -49,11 +47,26 @@ export default function ClientDocumentsPage() {
     };
   }, [authLoading, isAuthenticated, casesState.loading, casesState.error, casesState.data, reload]);
 
+  async function download(doc) {
+    setDownloadError(null);
+    setDownloading(doc.id);
+    try {
+      await downloadDocumentFile(doc.id, doc.fileName);
+    } catch (error) {
+      setDownloadError(describeDocumentError(error, { download: true }));
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   const visible = docs.groups.filter((group) => group.documents.length > 0);
 
   return (
     <div>
       <PageHeader eyebrow="Mes documents" title="Documents de vos dossiers" description="Les documents que votre cabinet a partagés avec vous, classés par dossier." />
+      {downloadError ? (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{downloadError}</div>
+      ) : null}
       <AsyncState
         loading={casesState.loading || docs.loading}
         error={docs.error}
@@ -67,20 +80,24 @@ export default function ClientDocumentsPage() {
             <SectionCard key={item.id} title={`${item.title} · ${item.reference}`}>
               <div className="space-y-3">
                 {documents.map((doc) => (
-                  <div key={doc.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="font-medium text-slate-800">{doc.fileName}</div>
-                    <div className="text-sm text-slate-500">
-                      Ajouté le {formatDate(doc.createdAt)}
-                      {doc.fileType ? ` · ${doc.fileType}` : ''}
-                      {formatSize(doc.fileSize) ? ` · ${formatSize(doc.fileSize)}` : ''}
+                  <div key={doc.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="break-all font-medium text-slate-800">{doc.fileName}</div>
+                      <div className="text-sm text-slate-500">
+                        Ajouté le {formatDate(doc.createdAt)}
+                        {doc.fileType ? ` · ${doc.fileType}` : ''}
+                        {formatFileSize(doc.fileSize) !== '—' ? ` · ${formatFileSize(doc.fileSize)}` : ''}
+                      </div>
+                      {doc.description && <div className="mt-1 text-sm text-slate-600">{doc.description}</div>}
                     </div>
-                    {doc.description && <div className="mt-1 text-sm text-slate-600">{doc.description}</div>}
+                    <button type="button" className={secondaryButton} disabled={downloading === doc.id} onClick={() => download(doc)}>
+                      {downloading === doc.id ? 'Téléchargement…' : 'Télécharger'}
+                    </button>
                   </div>
                 ))}
               </div>
             </SectionCard>
           ))}
-          <p className="text-xs text-slate-500">Le téléchargement des fichiers n'est pas encore disponible : le serveur ne conserve pour l'instant que les informations des documents.</p>
         </div>
       </AsyncState>
     </div>
