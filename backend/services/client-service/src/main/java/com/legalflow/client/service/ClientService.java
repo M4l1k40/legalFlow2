@@ -1,6 +1,7 @@
 package com.legalflow.client.service;
 
 import com.legalflow.client.domain.Client;
+import com.legalflow.client.dto.ClientProfileRequest;
 import com.legalflow.client.repository.ClientRepository;
 import com.legalflow.client.security.TenantContext;
 import com.legalflow.client.exception.ClientConflictException;
@@ -98,6 +99,27 @@ public class ClientService {
     private ClientConflictException duplicateEmailException(Throwable cause) {
         return new ClientConflictException("EMAIL_ALREADY_EXISTS",
                 "Un client avec cet email existe déjà.", cause);
+    }
+
+    /**
+     * Mise à jour de la fiche du client connecté. La fiche est toujours celle du claim clientId du token
+     * (jamais un identifiant fourni par l'appelant) et seuls nom, téléphone et adresse sont modifiables.
+     */
+    @Transactional
+    public Client updateCurrentClient(ClientProfileRequest request) {
+        Client client = findCurrentClient();
+        client.setFirstName(request.firstName().trim());
+        client.setLastName(request.lastName().trim());
+        client.setPhone(blankToNull(request.phone()));
+        client.setAddress(blankToNull(request.address()));
+        return clientRepository.save(client);
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     @Transactional
