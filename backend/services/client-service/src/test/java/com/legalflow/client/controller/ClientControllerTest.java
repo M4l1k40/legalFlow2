@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -298,6 +299,63 @@ class ClientControllerTest {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/clients/{id}/lawyers", CLIENT_ID)
                         .with(clientUser(FIRM_A, CLIENT_ID)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+
+        verify(clientRepository, never()).save(any(Client.class));
+    }
+
+    @Test
+    void clientUpdatesOnlyItsOwnNamePhoneAndAddress() throws Exception {
+        when(clientRepository.findById(CLIENT_ID)).thenReturn(Optional.of(client(FIRM_A)));
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // email et lawFirmId dans le corps doivent être ignorés
+        mockMvc.perform(put("/clients/me")
+                        .with(clientUser(FIRM_A, CLIENT_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"firstName":"  Sophie ","lastName":"Martin","phone":"   ","address":"12 rue des Lilas",
+                                 "email":"hacker@example.test","lawFirmId":"44444444-4444-4444-4444-444444444444"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName").value("Sophie"))
+                .andExpect(jsonPath("$.lastName").value("Martin"))
+                .andExpect(jsonPath("$.phone").doesNotExist())
+                .andExpect(jsonPath("$.address").value("12 rue des Lilas"))
+                .andExpect(jsonPath("$.email").value("client@example.test"))
+                .andExpect(jsonPath("$.lawFirmId").value(FIRM_A.toString()));
+    }
+
+    @Test
+    void profileUpdateWithBlankNameIsRejected() throws Exception {
+        mockMvc.perform(put("/clients/me")
+                        .with(clientUser(FIRM_A, CLIENT_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\" \",\"lastName\":\"Martin\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(clientRepository, never()).save(any(Client.class));
+    }
+
+    @Test
+    void staffCannotUseTheClientProfileEndpoint() throws Exception {
+        mockMvc.perform(put("/clients/me")
+                        .with(staff(FIRM_A))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(clientRepository, never()).save(any(Client.class));
+    }
+
+    @Test
+    void clientCannotUpdateARecordOfAnotherTenant() throws Exception {
+        when(clientRepository.findById(CLIENT_ID)).thenReturn(Optional.of(client(FIRM_B)));
+
+        mockMvc.perform(put("/clients/me")
+                        .with(clientUser(FIRM_A, CLIENT_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}"))
+                .andExpect(status().isNotFound());
 
         verify(clientRepository, never()).save(any(Client.class));
     }
