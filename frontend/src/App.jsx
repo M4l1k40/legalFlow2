@@ -16,6 +16,10 @@ import LawyerDashboardPage from './pages/lawyer/LawyerDashboardPage';
 import LawyerClientsPage from './pages/lawyer/LawyerClientsPage';
 import LawyerCasesPage from './pages/lawyer/LawyerCasesPage';
 import LawyerConsultationsPage from './pages/lawyer/LawyerConsultationsPage';
+import ClientAppointmentsPage from './pages/client/ClientAppointmentsPage';
+import ClientDocumentsPage from './pages/client/ClientDocumentsPage';
+import ClientJudicialPage from './pages/client/ClientJudicialPage';
+import ClientPaymentsPage from './pages/client/ClientPaymentsPage';
 import ClientConsultationsPage from './pages/client/ClientConsultationsPage';
 import OfficeConsultationsPage from './pages/secretary/OfficeConsultationsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
@@ -43,12 +47,12 @@ export default function App() {
                 <Route path="profile" element={<ClientProfilePage />} />
                 <Route path="cases" element={<ClientCasesPage />} />
                 <Route path="consultations" element={<ClientConsultationsPage />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="client.nav.documents" />} />
-                <Route path="judicial" element={<PlaceholderPage titleKey="client.nav.judicial" />} />
-                <Route path="payments" element={<PlaceholderPage titleKey="client.nav.payments" />} />
-                <Route path="appointments" element={<PlaceholderPage titleKey="client.nav.appointments" />} />
+                <Route path="documents" element={<ClientDocumentsPage />} />
+                <Route path="judicial" element={<ClientJudicialPage />} />
+                <Route path="payments" element={<ClientPaymentsPage />} />
+                <Route path="appointments" element={<ClientAppointmentsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
-              </Route>
+                              </Route>
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['lawyer', 'admin']} />}>
