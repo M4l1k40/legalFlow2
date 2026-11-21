@@ -2,6 +2,7 @@ package com.legalflow.client.controller;
 
 import com.legalflow.client.domain.Client;
 import com.legalflow.client.dto.ClientLawyersRequest;
+import com.legalflow.client.dto.ClientProfileRequest;
 import com.legalflow.client.service.ClientService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,13 @@ public class ClientController {
     @PreAuthorize("hasRole('CLIENT')")
     public Client me() {
         return clientService.findCurrentClient();
+    }
+
+    /** Le client connecté modifie sa propre fiche (nom, téléphone, adresse). */
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Client updateMe(@Valid @RequestBody ClientProfileRequest request) {
+        return clientService.updateCurrentClient(request);
     }
 
     /** Personnel : n'importe quelle fiche du cabinet. Client : uniquement sa propre fiche. */
