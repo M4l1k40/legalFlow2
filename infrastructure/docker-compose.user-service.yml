@@ -18,7 +18,8 @@ services:
       KEYCLOAK_REALM: legalflow
       KEYCLOAK_ADMIN_CLIENT_ID: legalflow-user-service
       # Secret de développement : à remplacer par un vrai secret (fichier .env ignoré par git) en production.
-      KEYCLOAK_ADMIN_CLIENT_SECRET: $KEYCLOAK_ADMIN_CLIENT_SECRET:${KEYCLOAK_ADMIN_CLIENT_SECRET:-dev-only-user-service-secret}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-dev-only-user-service-secret}
+      CLIENT_SERVICE_URL: http://client-service:8081
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/legalflow
     ports:
