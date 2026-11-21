@@ -37,4 +37,5 @@ Thumbs.db
 
 # Java crash logs
 hs_err_pid*
-replay_pid*
+replay_pid*logs/
+*.zip
