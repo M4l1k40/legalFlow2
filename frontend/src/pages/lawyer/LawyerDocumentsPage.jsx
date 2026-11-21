@@ -8,6 +8,7 @@ import { primaryButton, secondaryButton, dangerButton } from '../../components/c
 import useApi from '../../hooks/useApi';
 import useAction from '../../hooks/useAction';
 import { api } from '../../services/api';
+import { keycloak } from '../../context/AuthContext';
 import { downloadDocumentFile } from '../../utils/downloadFile';
 import {
   ACCEPT_ATTRIBUTE,
@@ -38,6 +39,9 @@ function toPayload(doc, overrides = {}) {
 }
 
 export default function LawyerDocumentsPage() {
+  // La secrétaire peut envoyer et télécharger ; changer la visibilité ou supprimer reste réservé à l'avocat et à l'administrateur.
+  const isOffice = Boolean(keycloak.hasRealmRole?.('ADMIN') || keycloak.hasRealmRole?.('SECRETARY'));
+  const canManage = Boolean(keycloak.hasRealmRole?.('ADMIN') || keycloak.hasRealmRole?.('LAWYER'));
   const casesApi = useApi('/api/cases');
   const cases = useMemo(() => (Array.isArray(casesApi.data) ? casesApi.data : []), [casesApi.data]);
   const [pickedCaseId, setCaseId] = useState('');
@@ -106,7 +110,7 @@ export default function LawyerDocumentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Espace avocat"
+        eyebrow={isOffice ? 'Administration' : 'Espace avocat'}
         title="Documents"
         description="Envoyez des documents dans un dossier et choisissez ceux que le client peut télécharger."
         action={
@@ -206,10 +210,14 @@ export default function LawyerDocumentsPage() {
                         <button type="button" className={secondaryButton} disabled={Boolean(busyKey)} onClick={() => download(doc)}>
                           {busyKey === `dl-${doc.id}` ? 'Téléchargement…' : 'Télécharger'}
                         </button>
-                        <button type="button" className={secondaryButton} disabled={Boolean(busyKey)} onClick={() => toggleVisibility(doc)}>
-                          {shared ? 'Rendre privé' : 'Partager'}
-                        </button>
-                        <button type="button" className={dangerButton} disabled={Boolean(busyKey)} onClick={() => remove(doc)}>Supprimer</button>
+                        {canManage ? (
+                          <>
+                            <button type="button" className={secondaryButton} disabled={Boolean(busyKey)} onClick={() => toggleVisibility(doc)}>
+                              {shared ? 'Rendre privé' : 'Partager'}
+                            </button>
+                            <button type="button" className={dangerButton} disabled={Boolean(busyKey)} onClick={() => remove(doc)}>Supprimer</button>
+                          </>
+                        ) : null}
                       </div>
                     </div>
                   );
