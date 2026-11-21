@@ -56,7 +56,7 @@ export default function App() {
                 <Route path="payments" element={<ClientPaymentsPage />} />
                 <Route path="appointments" element={<ClientAppointmentsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
-                              </Route>
+              </Route>
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['lawyer', 'admin']} />}>
