@@ -38,3 +38,6 @@ Thumbs.db
 # Java crash logs
 hs_err_pid*
 replay_pid*
+
+# Local logs
+logs/

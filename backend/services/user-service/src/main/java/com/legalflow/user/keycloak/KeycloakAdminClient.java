@@ -235,6 +235,27 @@ public class KeycloakAdminClient {
                 .toBodilessEntity());
     }
 
+    /** Met à jour prénom et nom : on relit la représentation complète pour ne rien écraser (rôles, attributs, email). */
+    public void updateNames(String userId, String firstName, String lastName) {
+        Map<String, Object> user = call(() -> restClient.get()
+                .uri("/admin/realms/{realm}/users/{id}", properties.realm(), userId)
+                .header(HttpHeaders.AUTHORIZATION, bearer())
+                .retrieve()
+                .body(RAW_MAP));
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found.");
+        }
+        user.put("firstName", firstName);
+        user.put("lastName", lastName);
+        call(() -> restClient.put()
+                .uri("/admin/realms/{realm}/users/{id}", properties.realm(), userId)
+                .header(HttpHeaders.AUTHORIZATION, bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(user)
+                .retrieve()
+                .toBodilessEntity());
+    }
+
     public void resetPassword(String userId, String password, boolean temporary) {
         call(() -> restClient.put()
                 .uri("/admin/realms/{realm}/users/{id}/reset-password", properties.realm(), userId)

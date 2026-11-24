@@ -2,6 +2,8 @@ package com.legalflow.client.controller;
 
 import com.legalflow.client.domain.Client;
 import com.legalflow.client.dto.ClientLawyersRequest;
+import com.legalflow.client.dto.ClientProfileRequest;
+import com.legalflow.client.integration.UserAccountNameSynchronizer;
 import com.legalflow.client.service.ClientService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,9 +18,11 @@ import java.util.UUID;
 public class ClientController {
 
     private final ClientService clientService;
+    private final UserAccountNameSynchronizer nameSynchronizer;
 
-    public ClientController(ClientService clientService) {
+    public ClientController(ClientService clientService, UserAccountNameSynchronizer nameSynchronizer) {
         this.clientService = clientService;
+        this.nameSynchronizer = nameSynchronizer;
     }
 
     /** Liste des clients du cabinet : réservée au personnel. */
@@ -33,6 +37,16 @@ public class ClientController {
     @PreAuthorize("hasRole('CLIENT')")
     public Client me() {
         return clientService.findCurrentClient();
+    }
+
+    /** Le client connecté modifie sa propre fiche (nom, téléphone, adresse). */
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Client updateMe(@Valid @RequestBody ClientProfileRequest request) {
+        Client updated = clientService.updateCurrentClient(request);
+        // Après l'enregistrement (hors transaction) : recopie le nom vers Keycloak, sans bloquer en cas d'échec.
+        nameSynchronizer.syncName(updated.getFirstName(), updated.getLastName());
+        return updated;
     }
 
     /** Personnel : n'importe quelle fiche du cabinet. Client : uniquement sa propre fiche. */

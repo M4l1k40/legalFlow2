@@ -5,6 +5,7 @@ import com.legalflow.user.dto.CreatedUserResponse;
 import com.legalflow.user.dto.LawyerSummary;
 import com.legalflow.user.dto.MeResponse;
 import com.legalflow.user.dto.PasswordResetResponse;
+import com.legalflow.user.dto.UpdateNameRequest;
 import com.legalflow.user.dto.UserResponse;
 import com.legalflow.user.integration.ClientServiceOwnershipVerifier;
 import com.legalflow.user.keycloak.KeycloakAdminClient;
@@ -61,6 +62,15 @@ public class UserDirectoryService {
                 roles,
                 jwt.getClaimAsString("lawFirmId"),
                 jwt.getClaimAsString("clientId"));
+    }
+
+    /**
+     * Met à jour le prénom et le nom du compte Keycloak de l'utilisateur connecté. Le compte est celui du claim sub
+     * du token : l'appelant ne peut jamais viser un autre compte.
+     */
+    public void updateOwnName(UpdateNameRequest request) {
+        String userId = TenantContext.requireUserId().toString();
+        keycloak.updateNames(userId, request.firstName().trim(), request.lastName().trim());
     }
 
     public List<UserResponse> listUsers() {

@@ -109,6 +109,29 @@ public class CaseService {
         return save(legalCase);
     }
 
+    /**
+     * Change le statut d'un dossier et l'inscrit dans l'historique (événement STATUS_CHANGED, au format
+     * « ANCIEN -> NOUVEAU | note »). findById applique le cabinet et la visibilité : un avocat ne modifie que ses dossiers.
+     */
+    @Transactional
+    public LegalCase changeStatus(UUID id, CaseStatus newStatus, String note) {
+        LegalCase legalCase = findById(id);
+        CaseStatus current = legalCase.getStatus();
+        if (!CaseStatusRules.isAllowed(current, newStatus)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Status change not allowed: " + current + " -> " + newStatus);
+        }
+        legalCase.setStatus(newStatus);
+        LegalCase savedCase = legalCaseRepository.save(legalCase);
+        String cleanNote = note == null ? "" : note.trim();
+        String description = current + " -> " + newStatus + (cleanNote.isEmpty() ? "" : " | " + cleanNote);
+        CaseEvent event = new CaseEvent(savedCase.getId(), "STATUS_CHANGED", description,
+                TenantContext.requireUserId().toString());
+        savedCase.addEvent(event);
+        caseEventRepository.save(event);
+        return savedCase;
+    }
+
     /** Avocat : ses dossiers ; client : ses dossiers ; 404 sinon, pour ne rien révéler. */
     private void requireVisibleToCurrentUser(LegalCase legalCase, UUID caseId) {
         if (TenantContext.isOfficeStaff()) {
