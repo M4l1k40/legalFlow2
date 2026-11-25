@@ -1,45 +1,129 @@
 @import 'tailwindcss';
 
+/* ---------- Design tokens ----------
+   Les pages utilisent les classes « slate / blue / emerald… » de Tailwind : on redéfinit ici ces échelles
+   (marine encre + accent laiton) pour que toute l'application adopte l'identité LegalFlow, clair comme sombre. */
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces', 'Georgia', 'Times New Roman', serif;
+
+  --color-slate-50: #f7f8fb;
+  --color-slate-100: #eef1f7;
+  --color-slate-200: #e0e5ef;
+  --color-slate-300: #c9d1e0;
+  --color-slate-400: #96a2b8;
+  --color-slate-500: #6a7690;
+  --color-slate-600: #4b5771;
+  --color-slate-700: #353f58;
+  --color-slate-800: #1f2943;
+  --color-slate-900: #131c35;
+  --color-slate-950: #0a1226;
+
+  --color-brand-50: #fbf6ea;
+  --color-brand-100: #f4e8c8;
+  --color-brand-200: #ead29a;
+  --color-brand-400: #d4a64a;
+  --color-brand-500: #b8893b;
+  --color-brand-600: #9a6f2b;
+  --color-brand-700: #7a5521;
+
+  --shadow-card: 0 1px 2px rgb(19 28 53 / 0.04), 0 8px 24px -12px rgb(19 28 53 / 0.12);
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
+
+/* ---------- Thème sombre : on inverse les échelles ---------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-white: #182240;
+  --color-slate-50: #111a33;
+  --color-slate-100: #1a2442;
+  --color-slate-200: #28345a;
+  --color-slate-300: #3a4870;
+  --color-slate-400: #7c89a6;
+  --color-slate-500: #98a4bd;
+  --color-slate-600: #b3bdd1;
+  --color-slate-700: #ccd3e2;
+  --color-slate-800: #e2e7f1;
+  --color-slate-900: #f2f4f9;
+  --color-slate-950: #060b1a;
+
+  --color-blue-50: #14264d;   --color-blue-100: #1b3566;   --color-blue-200: #27478a;   --color-blue-700: #9cc0ff;
+  --color-emerald-50: #0f2f27; --color-emerald-100: #124035; --color-emerald-200: #1c5c4b; --color-emerald-700: #6fe0b9;
+  --color-amber-50: #33270d;  --color-amber-100: #44330f;  --color-amber-200: #5f4814;  --color-amber-300: #7a5e1b;
+  --color-amber-700: #f2c96a; --color-amber-800: #f5d487; --color-amber-900: #f8e0a8;
+  --color-rose-50: #3a1520;   --color-rose-100: #4b1a28;   --color-rose-200: #6b2638;   --color-rose-600: #ff8fa6; --color-rose-700: #ff9fb3;
+  --color-violet-50: #271a4a; --color-violet-100: #33235f; --color-violet-200: #4a3586; --color-violet-700: #c0aaff;
+  --color-cyan-100: #0f3640;  --color-cyan-700: #6fdcef;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+}
+
 :root {
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
-  font-weight: 400;
-  color: #0f172a;
-  background: #f8fafc;
+  color: var(--color-slate-900);
+  background: var(--color-slate-50);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
-  height: 100%;
-  margin: 0;
+html, body, #root { min-height: 100%; height: 100%; margin: 0; }
+body { min-height: 100vh; background: var(--color-slate-50); }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; }
+button:not(:disabled) { cursor: pointer; }
+
+h1, .font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
+
+[dir='rtl'] { text-align: right; }
+[dir='ltr'] { text-align: left; }
+
+::selection { background: var(--color-brand-200); color: #131c35; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-slate-300); border-radius: 999px; border: 2px solid var(--color-slate-50); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-slate-100) 25%, var(--color-slate-200) 37%, var(--color-slate-100) 63%);
+  background-size: 400% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 12px;
 }
 
-body {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+.bg-grid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
-* {
-  box-sizing: border-box;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-[dir='rtl'] {
-  text-align: right;
-}
-
-[dir='ltr'] {
-  text-align: left;
+/* Zones « encre » (barre latérale, héros de connexion) : elles gardent la palette claire d'origine,
+   même en thème sombre, pour rester sombres et lisibles. */
+.ink-scope {
+  --color-white: #ffffff;
+  --color-slate-50: #f7f8fb;
+  --color-slate-100: #eef1f7;
+  --color-slate-200: #e0e5ef;
+  --color-slate-300: #c9d1e0;
+  --color-slate-400: #96a2b8;
+  --color-slate-500: #6a7690;
+  --color-slate-600: #4b5771;
+  --color-slate-700: #353f58;
+  --color-slate-800: #1f2943;
+  --color-slate-900: #131c35;
+  --color-slate-950: #0a1226;
 }

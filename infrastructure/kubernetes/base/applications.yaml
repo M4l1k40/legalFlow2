@@ -1,0 +1,1440 @@
+# GÉNÉRÉ par infrastructure/kubernetes/generate.py — ne pas modifier à la main.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gateway
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '9000'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: gateway
+        image: ghcr.io/m4l1k40/lg2/gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+          name: http
+        env:
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: JUDICIAL_SERVICE_URL
+          value: http://judicial-service:8084
+        - name: DOCUMENT_SERVICE_URL
+          value: http://document-service:8085
+        - name: DEADLINE_SERVICE_URL
+          value: http://deadline-service:8086
+        - name: BILLING_SERVICE_URL
+          value: http://billing-service:8088
+        - name: CONSULTATION_SERVICE_URL
+          value: http://consultation-service:8089
+        - name: APPOINTMENT_SERVICE_URL
+          value: http://appointment-service:8083
+        - name: NOTIFICATION_SERVICE_URL
+          value: http://notification-service:8087
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: gateway
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: client-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: client-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: client-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8081'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: client-service
+        image: ghcr.io/m4l1k40/lg2/client-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://postgres:5432/legalflow
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: legalflow
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: client-db-password
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: client-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: client-service
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: case-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: case-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: case-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: case-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8082'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: case-service
+        image: ghcr.io/m4l1k40/lg2/case-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://case-db:5432/case_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: case_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: case-db-password
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: case-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: case-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: case-service
+  ports:
+  - name: http
+    port: 8082
+    targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: appointment-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: appointment-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: appointment-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8083'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: appointment-service
+        image: ghcr.io/m4l1k40/lg2/appointment-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://appointment-db:5432/appointment_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: appointment_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: appointment-db-password
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: appointment-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: appointment-service
+  ports:
+  - name: http
+    port: 8083
+    targetPort: 8083
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judicial-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: judicial-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: judicial-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: judicial-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8084'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: judicial-service
+        image: ghcr.io/m4l1k40/lg2/judicial-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8084
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://judicial-db:5432/judicial_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: judicial_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: judicial-db-password
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judicial-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: judicial-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: judicial-service
+  ports:
+  - name: http
+    port: 8084
+    targetPort: 8084
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: document-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: document-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: document-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8085'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: document-service
+        image: ghcr.io/m4l1k40/lg2/document-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://document-db:5432/document_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: document_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: document-db-password
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: MINIO_ENDPOINT
+          value: http://minio:9000
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: minio-root-user
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: minio-root-password
+        - name: MINIO_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: MINIO_BUCKET
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: document-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: document-service
+  ports:
+  - name: http
+    port: 8085
+    targetPort: 8085
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deadline-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: deadline-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: deadline-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: deadline-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8086'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: deadline-service
+        image: ghcr.io/m4l1k40/lg2/deadline-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8086
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://deadline-db:5432/deadline_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: deadline_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: deadline-db-password
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: DEADLINE_PROCESSING_INTERVAL_MS
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: DEADLINE_PROCESSING_INTERVAL_MS
+        - name: DEADLINE_APPROACHING_THRESHOLDS_DAYS
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: DEADLINE_APPROACHING_THRESHOLDS_DAYS
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deadline-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: deadline-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: deadline-service
+  ports:
+  - name: http
+    port: 8086
+    targetPort: 8086
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8087'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: notification-service
+        image: ghcr.io/m4l1k40/lg2/notification-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8087
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://notification-db:5432/notification_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: notification_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: notification-db-password
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: MAIL_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: MAIL_HOST
+        - name: MAIL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: MAIL_PORT
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: mail-username
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: mail-password
+        - name: MAIL_FROM
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: MAIL_FROM
+        - name: NOTIFICATION_SERVICE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: notification-service-client-secret
+        - name: WHATSAPP_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: WHATSAPP_MODE
+        - name: WHATSAPP_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: WHATSAPP_PROVIDER
+        - name: WHATSAPP_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: WHATSAPP_API_URL
+        - name: WHATSAPP_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: whatsapp-access-token
+        - name: WHATSAPP_PHONE_NUMBER_ID
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: WHATSAPP_PHONE_NUMBER_ID
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: notification-service
+  ports:
+  - name: http
+    port: 8087
+    targetPort: 8087
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: billing-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: billing-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: billing-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8088'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: billing-service
+        image: ghcr.io/m4l1k40/lg2/billing-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8088
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://billing-db:5432/billing_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: billing_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: billing-db-password
+        - name: CASE_SERVICE_URL
+          value: http://case-service:8082
+        - name: BILLING_PROCESSING_INTERVAL_MS
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: BILLING_PROCESSING_INTERVAL_MS
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: billing-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: billing-service
+  ports:
+  - name: http
+    port: 8088
+    targetPort: 8088
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consultation-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: consultation-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: consultation-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: consultation-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8089'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: consultation-service
+        image: ghcr.io/m4l1k40/lg2/consultation-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8089
+          name: http
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://consultation-db:5432/consultation_db
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: org.postgresql.Driver
+        - name: SPRING_DATASOURCE_USERNAME
+          value: consultation_user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: consultation-db-password
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_USERNAME
+          value: legalflow
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consultation-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: consultation-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: consultation-service
+  ports:
+  - name: http
+    port: 8089
+    targetPort: 8089
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: user-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: user-service
+        app.kubernetes.io/part-of: legalflow
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: '8090'
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: user-service
+        image: ghcr.io/m4l1k40/lg2/user-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8090
+          name: http
+        env:
+        - name: KEYCLOAK_BASE_URL
+          value: http://keycloak:8080
+        - name: KEYCLOAK_REALM
+          value: legalflow
+        - name: KEYCLOAK_ADMIN_CLIENT_ID
+          value: legalflow-user-service
+        - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: keycloak-admin-client-secret
+        - name: CLIENT_SERVICE_URL
+          value: http://client-service:8081
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+          value: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: user-service
+  ports:
+  - name: http
+    port: 8090
+    targetPort: 8090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: legalflow
+      annotations: {}
+    spec:
+      securityContext:
+        runAsUser: 101
+        runAsGroup: 101
+      containers:
+      - name: frontend
+        image: ghcr.io/m4l1k40/lg2/frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env: []
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            memory: 128Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          failureThreshold: 5
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: frontend
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080

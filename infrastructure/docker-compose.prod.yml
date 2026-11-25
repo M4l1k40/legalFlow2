@@ -1,0 +1,148 @@
+# GÉNÉRÉ par infrastructure/scripts/generate-prod-compose.py — ne pas modifier à la main.
+# Production : ports internes non publiés (SEC-12), secrets obligatoires (SEC-13). Compose >= 2.24.
+#   docker compose -f docker-compose.yml -f docker-compose.user-service.yml -f docker-compose.platform.yml \
+#                  -f docker-compose.prod.yml --env-file ../.env.prod up -d --build
+services:
+  rabbitmq:
+    ports: !reset []
+    environment:
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${CLIENT_DB_PASSWORD:?definissez CLIENT_DB_PASSWORD dans .env}
+  keycloak:
+    command:
+    - start
+    - --import-realm
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    volumes:
+    - legalflow_keycloak_data:/opt/keycloak/data
+    - ./keycloak/prod:/opt/keycloak/data/import:ro
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?definissez KEYCLOAK_DB_PASSWORD dans .env}
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:?definissez KEYCLOAK_PUBLIC_URL (https://auth.exemple.com) dans .env}
+      KC_HTTP_ENABLED: 'true'
+      KC_PROXY_HEADERS: xforwarded
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:?definissez KEYCLOAK_ADMIN_USER dans .env}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?definissez KEYCLOAK_ADMIN_PASSWORD dans .env}
+      LEGALFLOW_FRONTEND_URL: ${LEGALFLOW_FRONTEND_URL:?definissez LEGALFLOW_FRONTEND_URL dans .env}
+      LEGALFLOW_API_URL: ${LEGALFLOW_API_URL:?definissez LEGALFLOW_API_URL dans .env}
+      KC_SECRET_LEGALFLOW_GATEWAY: ${KC_SECRET_LEGALFLOW_GATEWAY:?definissez KC_SECRET_LEGALFLOW_GATEWAY dans .env}
+  client-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${CLIENT_DB_PASSWORD:?definissez CLIENT_DB_PASSWORD dans .env}
+  case-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${CASE_DB_PASSWORD:?definissez CASE_DB_PASSWORD dans .env}
+  case-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${CASE_DB_PASSWORD:?definissez CASE_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  judicial-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${JUDICIAL_DB_PASSWORD:?definissez JUDICIAL_DB_PASSWORD dans .env}
+  judicial-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${JUDICIAL_DB_PASSWORD:?definissez JUDICIAL_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  document-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${DOCUMENT_DB_PASSWORD:?definissez DOCUMENT_DB_PASSWORD dans .env}
+  document-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${DOCUMENT_DB_PASSWORD:?definissez DOCUMENT_DB_PASSWORD dans .env}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?definissez MINIO_ROOT_PASSWORD dans .env}
+  deadline-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${DEADLINE_DB_PASSWORD:?definissez DEADLINE_DB_PASSWORD dans .env}
+  deadline-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${DEADLINE_DB_PASSWORD:?definissez DEADLINE_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  billing-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${BILLING_DB_PASSWORD:?definissez BILLING_DB_PASSWORD dans .env}
+  billing-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${BILLING_DB_PASSWORD:?definissez BILLING_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  consultation-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${CONSULTATION_DB_PASSWORD:?definissez CONSULTATION_DB_PASSWORD dans .env}
+  consultation-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${CONSULTATION_DB_PASSWORD:?definissez CONSULTATION_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  appointment-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${APPOINTMENT_DB_PASSWORD:?definissez APPOINTMENT_DB_PASSWORD dans .env}
+  appointment-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${APPOINTMENT_DB_PASSWORD:?definissez APPOINTMENT_DB_PASSWORD dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  notification-db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?definissez NOTIFICATION_DB_PASSWORD dans .env}
+  notification-service:
+    ports: !reset []
+    environment:
+      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?definissez NOTIFICATION_DB_PASSWORD dans .env}
+      NOTIFICATION_SERVICE_CLIENT_SECRET: ${NOTIFICATION_SERVICE_CLIENT_SECRET:?definissez NOTIFICATION_SERVICE_CLIENT_SECRET dans .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?definissez RABBITMQ_DEFAULT_PASS dans .env}
+  mailpit:
+    ports: !reset []
+  user-service:
+    ports: !reset []
+    environment:
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:?definissez KEYCLOAK_ADMIN_CLIENT_SECRET dans .env}
+  minio:
+    ports: !reset []
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?definissez MINIO_ROOT_PASSWORD dans .env}
+  prometheus:
+    ports: !reset []
+  grafana:
+    ports: !reset []
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?definissez GRAFANA_ADMIN_PASSWORD dans .env}
+  keycloak-db:
+    image: postgres:17-alpine
+    container_name: legalflow-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?definissez KEYCLOAK_DB_PASSWORD dans .env}
+    volumes:
+    - legalflow_keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U keycloak -d keycloak
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  legalflow_keycloak_db_data: null

@@ -38,6 +38,6 @@ Thumbs.db
 # Java crash logs
 hs_err_pid*
 replay_pid*
-
-# Local logs
-logs/
+# Secrets de production (ne jamais committer)
+.env.prod
+infrastructure/kubernetes/secrets.yaml

@@ -10,7 +10,9 @@ import com.legalflow.judicial_service.domain.JudicialCaseStatus;
 import com.legalflow.judicial_service.domain.JudicialEvent;
 import com.legalflow.judicial_service.domain.JudgeRequest;
 import com.legalflow.judicial_service.integration.CaseServiceOwnershipVerifier;
+import com.legalflow.judicial_service.messaging.JudicialEventPublisher;
 import com.legalflow.judicial_service.repository.CourtRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.legalflow.judicial_service.repository.HearingRepository;
 import com.legalflow.judicial_service.repository.JudgeRepository;
 import com.legalflow.judicial_service.repository.JudicialCaseRepository;
@@ -50,6 +52,13 @@ public class JudicialService {
     private final HearingRepository hearingRepository;
     private final JudicialEventRepository judicialEventRepository;
     private final CaseServiceOwnershipVerifier caseServiceOwnershipVerifier;
+    private JudicialEventPublisher eventPublisher;
+
+    /** Optionnel : absent des tests qui construisent le service à la main ; les événements sont alors ignorés. */
+    @Autowired(required = false)
+    public void setEventPublisher(JudicialEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public JudicialService(CourtRepository courtRepository,
                           JudgeRepository judgeRepository,
@@ -67,35 +76,55 @@ public class JudicialService {
 
     @Transactional(readOnly = true)
     public List<Court> findAllCourts() {
-        return courtRepository.findAll();
+        UUID tenantId = TenantContext.requireLawFirmId();
+        return courtRepository.findAll().stream().filter(court -> isCourtVisible(court, tenantId)).toList();
     }
 
     @Transactional(readOnly = true)
     public Court findCourtById(UUID id) {
+        UUID tenantId = TenantContext.requireLawFirmId();
         return courtRepository.findById(id)
+                .filter(court -> isCourtVisible(court, tenantId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Court not found: " + id));
+    }
+
+    /** SEC-10 : un tribunal est visible s'il appartient au cabinet ou s'il est une donnée de référence partagée. */
+    private static boolean isCourtVisible(Court court, UUID tenantId) {
+        return court.getLawFirmId() == null || tenantId.equals(court.getLawFirmId());
+    }
+
+    /** SEC-10 : seul le cabinet propriétaire modifie un tribunal ; les données partagées sont en lecture seule. */
+    private Court findOwnedCourt(UUID id) {
+        Court court = findCourtById(id);
+        if (!TenantContext.requireLawFirmId().equals(court.getLawFirmId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "This court is shared reference data and is read-only. Create your own court instead.");
+        }
+        return court;
     }
 
     @Transactional
     public Court createCourt(Court court) {
+        court.setLawFirmId(TenantContext.requireLawFirmId());
         return courtRepository.save(court);
     }
 
     @Transactional(readOnly = true)
     public List<Judge> findJudgesByCourtId(UUID courtId) {
+        findCourtById(courtId);
         return judgeRepository.findByCourtIdOrderByLastNameAscFirstNameAsc(courtId);
     }
 
     @Transactional
     public Judge createJudge(UUID courtId, Judge judge) {
-        Court court = findCourtById(courtId);
+        Court court = findOwnedCourt(courtId);
         judge.setCourt(court);
         return judgeRepository.save(judge);
     }
 
     @Transactional
     public Judge createJudge(JudgeRequest request) {
-        Court court = findCourtById(request.getCourtId());
+        Court court = findOwnedCourt(request.getCourtId());
         Judge judge = new Judge(court, request.getFirstName(), request.getLastName(), request.getRole());
         return judgeRepository.save(judge);
     }
@@ -146,11 +175,16 @@ public class JudicialService {
                 "Judicial case registered for caseId=" + saved.getCaseId(), LocalDateTime.now(), "system");
         saved.addEvent(event);
         judicialCaseRepository.save(saved);
+        if (eventPublisher != null) {
+            eventPublisher.caseRegistered(saved);
+        }
         return saved;
     }
 
     private void validateJudicialCaseReferences(UUID courtId, UUID judgeId) {
+        UUID tenantId = TenantContext.requireLawFirmId();
         Court court = courtRepository.findById(courtId)
+                .filter(candidate -> isCourtVisible(candidate, tenantId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Court not found: " + courtId));
 
@@ -190,7 +224,11 @@ public class JudicialService {
                 "Judicial case status changed from " + current + " to " + newStatus,
                 LocalDateTime.now(), "system");
         judicialCase.addEvent(event);
-        return judicialCaseRepository.save(judicialCase);
+        JudicialCase savedCase = judicialCaseRepository.save(judicialCase);
+        if (eventPublisher != null) {
+            eventPublisher.caseStatusChanged(savedCase);
+        }
+        return savedCase;
     }
 
     @Transactional(readOnly = true)
@@ -249,6 +287,9 @@ public class JudicialService {
                 LocalDateTime.now(), "system");
         judicialCase.addEvent(event);
         judicialCaseRepository.save(judicialCase);
+        if (eventPublisher != null) {
+            eventPublisher.hearingCreated(judicialCase);
+        }
         return saved;
     }
 
@@ -285,6 +326,9 @@ public class JudicialService {
             judicialCaseRepository.save(hearing.getJudicialCase());
         }
 
+        if (eventPublisher != null) {
+            eventPublisher.hearingStatusChanged(hearing.getJudicialCase());
+        }
         return saved;
     }
 

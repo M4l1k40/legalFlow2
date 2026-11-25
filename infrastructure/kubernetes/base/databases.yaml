@@ -1,0 +1,756 @@
+# GÉNÉRÉ par infrastructure/kubernetes/generate.py — ne pas modifier à la main.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: legalflow
+        - name: POSTGRES_USER
+          value: legalflow
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: client-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - legalflow
+            - -d
+            - legalflow
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: case-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: case-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: case-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: case-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: case-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: case-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: case_db
+        - name: POSTGRES_USER
+          value: case_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: case-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - case_user
+            - -d
+            - case_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: case-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: case-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: case-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: judicial-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: judicial-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: judicial-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: judicial-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: judicial-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: judicial-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: judicial_db
+        - name: POSTGRES_USER
+          value: judicial_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: judicial-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - judicial_user
+            - -d
+            - judicial_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judicial-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: judicial-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: judicial-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: document-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: document-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: document-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: document-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: document-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: document-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: document_db
+        - name: POSTGRES_USER
+          value: document_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: document-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - document_user
+            - -d
+            - document_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: document-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: document-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: deadline-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: deadline-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: deadline-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: deadline-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: deadline-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: deadline-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: deadline_db
+        - name: POSTGRES_USER
+          value: deadline_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: deadline-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - deadline_user
+            - -d
+            - deadline_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deadline-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: deadline-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: deadline-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: billing-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: billing-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: billing-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: billing-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: billing-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: billing-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: billing_db
+        - name: POSTGRES_USER
+          value: billing_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: billing-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - billing_user
+            - -d
+            - billing_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: billing-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: billing-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: consultation-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: consultation-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: consultation-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: consultation-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: consultation-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: consultation-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: consultation_db
+        - name: POSTGRES_USER
+          value: consultation_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: consultation-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - consultation_user
+            - -d
+            - consultation_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consultation-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: consultation-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: consultation-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: appointment-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: appointment-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: appointment-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: appointment-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: appointment-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: appointment-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: appointment_db
+        - name: POSTGRES_USER
+          value: appointment_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: appointment-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - appointment_user
+            - -d
+            - appointment_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: appointment-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: appointment-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: notification-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: notification-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: notification-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: notification-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: notification_db
+        - name: POSTGRES_USER
+          value: notification_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: notification-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - notification_user
+            - -d
+            - notification_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: notification-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: notification-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432

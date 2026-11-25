@@ -1,0 +1,591 @@
+# GÉNÉRÉ par infrastructure/kubernetes/generate.py — ne pas modifier à la main.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: legalflow-backups
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: legalflow-backups
+    app.kubernetes.io/part-of: legalflow
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-postgres
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-postgres
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/postgres; pg_dump -h postgres -U legalflow
+              -d legalflow -Fc -f /backup/postgres/legalflow-$(date +%F).dump; find
+              /backup/postgres -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: client-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-keycloak-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-keycloak-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/keycloak-db; pg_dump -h keycloak-db -U keycloak
+              -d keycloak -Fc -f /backup/keycloak-db/keycloak-$(date +%F).dump; find
+              /backup/keycloak-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: keycloak-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-case-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-case-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/case-db; pg_dump -h case-db -U case_user -d
+              case_db -Fc -f /backup/case-db/case_db-$(date +%F).dump; find /backup/case-db
+              -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: case-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-judicial-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-judicial-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/judicial-db; pg_dump -h judicial-db -U judicial_user
+              -d judicial_db -Fc -f /backup/judicial-db/judicial_db-$(date +%F).dump;
+              find /backup/judicial-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: judicial-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-document-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-document-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/document-db; pg_dump -h document-db -U document_user
+              -d document_db -Fc -f /backup/document-db/document_db-$(date +%F).dump;
+              find /backup/document-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: document-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-deadline-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-deadline-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/deadline-db; pg_dump -h deadline-db -U deadline_user
+              -d deadline_db -Fc -f /backup/deadline-db/deadline_db-$(date +%F).dump;
+              find /backup/deadline-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: deadline-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-billing-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-billing-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/billing-db; pg_dump -h billing-db -U billing_user
+              -d billing_db -Fc -f /backup/billing-db/billing_db-$(date +%F).dump;
+              find /backup/billing-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: billing-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-consultation-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-consultation-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/consultation-db; pg_dump -h consultation-db
+              -U consultation_user -d consultation_db -Fc -f /backup/consultation-db/consultation_db-$(date
+              +%F).dump; find /backup/consultation-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: consultation-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-appointment-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-appointment-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/appointment-db; pg_dump -h appointment-db -U
+              appointment_user -d appointment_db -Fc -f /backup/appointment-db/appointment_db-$(date
+              +%F).dump; find /backup/appointment-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: appointment-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-notification-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-notification-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: postgres:17-alpine
+            command:
+            - sh
+            - -c
+            - set -e; mkdir -p /backup/notification-db; pg_dump -h notification-db
+              -U notification_user -d notification_db -Fc -f /backup/notification-db/notification_db-$(date
+              +%F).dump; find /backup/notification-db -name '*.dump' -mtime +14 -delete
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: notification-db-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-minio
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: backup-minio
+    app.kubernetes.io/part-of: legalflow
+spec:
+  schedule: 30 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+          - name: backup
+            image: minio/mc:latest
+            command:
+            - sh
+            - -c
+            - set -e; mc alias set src http://minio:9000 "$MINIO_USER" "$MINIO_PASS";
+              mc mirror --overwrite --remove src/legalflow-documents /backup/minio
+            env:
+            - name: MINIO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: minio-root-user
+            - name: MINIO_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: legalflow-secrets
+                  key: minio-root-password
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: legalflow-backups

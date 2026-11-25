@@ -1,0 +1,82 @@
+# Plateforme complète : s'ajoute au compose de base + user-service.
+#   docker compose -f docker-compose.yml -f docker-compose.user-service.yml -f docker-compose.platform.yml up -d --build
+# Ajoute : MinIO (stockage des documents), frontend (nginx), Prometheus, Grafana.
+services:
+  minio:
+    image: docker.io/pgsty/silo:RELEASE.2026-11-12T00-00-00Z
+    container_name: legalflow-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-legalflow}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-replace-with-minio-secret}
+    ports:
+      - "127.0.0.1:9001:9001"   # console web ; l'API S3 (9000) reste interne
+    volumes:
+      - legalflow_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  document-service:
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-legalflow}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-replace-with-minio-secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-legalflow-documents}
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:9000}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-legalflow}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-legalflow-frontend}
+    container_name: legalflow-frontend
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "5173:8080"   # même port que `npm run dev` : c'est la seule origine autorisée par Keycloak et la gateway
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    container_name: legalflow-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - legalflow_prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.1
+    container_name: legalflow-grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - legalflow_grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+volumes:
+  legalflow_minio_data:
+  legalflow_prometheus_data:
+  legalflow_grafana_data:

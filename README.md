@@ -3,6 +3,9 @@
 Plateforme SaaS de gestion de cabinets d'avocats : dossiers, consultations, clients et notifications, avec une architecture **microservices** sécurisée par **Keycloak (OIDC / JWT)**.
 
 > Statut : en développement actif. Voir [Feuille de route](#feuille-de-route).
+> **Déploiement complet** : voir [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (Compose, Kubernetes, CI/CD, monitoring).
+> **État réel et limites** : voir [`docs/COMPLETION_REPORT.md`](docs/COMPLETION_REPORT.md).
+
 
 ---
 

@@ -98,3 +98,27 @@ export const api = {
   patch: (endpoint, body, options) => apiRequest(endpoint, { ...options, method: 'PATCH', body }),
   delete: (endpoint, options) => apiRequest(endpoint, { ...options, method: 'DELETE' })
 };
+
+/**
+ * Télécharge un fichier protégé par le jeton Keycloak (un simple lien <a> n'enverrait pas l'en-tête Authorization).
+ * Le fichier est récupéré en Blob puis proposé au navigateur sous son nom d'origine.
+ */
+export async function downloadFile(endpoint, fallbackName = 'document') {
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers: { ...authHeaders } });
+  if (!response.ok) {
+    throw await buildError(response);
+  }
+  const disposition = response.headers.get('content-disposition') || '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1]) : fallbackName;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}

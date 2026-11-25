@@ -4,6 +4,8 @@ import com.legalflow.billing.domain.Invoice;
 import com.legalflow.billing.domain.InvoiceStatus;
 import com.legalflow.billing.dto.InvoiceRequest;
 import com.legalflow.billing.integration.CaseServiceOwnershipVerifier;
+import com.legalflow.billing.messaging.InvoiceEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.legalflow.billing.repository.InvoiceRepository;
 import com.legalflow.billing.security.TenantContext;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,13 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final CaseServiceOwnershipVerifier caseServiceOwnershipVerifier;
+    private InvoiceEventPublisher eventPublisher;
+
+    /** Optionnel : absent des tests qui construisent le service à la main ; les événements sont alors ignorés. */
+    @Autowired(required = false)
+    public void setEventPublisher(InvoiceEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           CaseServiceOwnershipVerifier caseServiceOwnershipVerifier) {
@@ -76,7 +85,11 @@ public class InvoiceService {
                 InvoiceStatus.SENT,
                 TenantContext.currentUserSubjectOrNull()
         );
-        return invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        if (eventPublisher != null) {
+            eventPublisher.issued(saved);
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -156,7 +169,15 @@ public class InvoiceService {
         }
 
         invoice.setStatus(nextStatus);
-        return invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        if (eventPublisher != null) {
+            if (nextStatus == InvoiceStatus.PAID) {
+                eventPublisher.paid(saved);
+            } else if (nextStatus == InvoiceStatus.OVERDUE) {
+                eventPublisher.overdue(saved);
+            }
+        }
+        return saved;
     }
 
     @Transactional

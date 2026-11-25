@@ -1,11 +1,18 @@
+import { Link } from 'react-router-dom';
+import { Logo } from '../components/common/Icon';
+import { useLanguage } from '../context/LanguageContext';
+
 export default function PageNotFound() {
+  const { t, dir } = useLanguage();
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <div className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-500">404</div>
-        <h1 className="mt-3 text-3xl font-bold text-slate-900">Page introuvable</h1>
-        <p className="mt-2 text-slate-600">Cette page n’existe pas ou a été déplacée.</p>
-      </div>
+    <div dir={dir} className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
+      <Logo className="h-12 w-12" />
+      <div className="font-display text-7xl font-semibold text-brand-500">404</div>
+      <h1 className="text-2xl font-semibold text-slate-900">{t.notFound.title}</h1>
+      <p className="max-w-sm text-sm text-slate-500">{t.notFound.text}</p>
+      <Link to="/login" className="mt-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
+        {t.notFound.back}
+      </Link>
     </div>
   );
 }

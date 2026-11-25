@@ -6,7 +6,6 @@ import com.legalflow.user.dto.EnabledRequest;
 import com.legalflow.user.dto.LawyerSummary;
 import com.legalflow.user.dto.MeResponse;
 import com.legalflow.user.dto.PasswordResetResponse;
-import com.legalflow.user.dto.UpdateNameRequest;
 import com.legalflow.user.dto.UserResponse;
 import com.legalflow.user.service.UserDirectoryService;
 import jakarta.validation.Valid;
@@ -38,14 +37,6 @@ public class UserController {
     @PreAuthorize("hasAnyRole('ADMIN','SECRETARY','LAWYER','CLIENT')")
     public MeResponse me() {
         return userDirectoryService.currentUser();
-    }
-
-    /** Le client connecté synchronise son prénom et son nom vers son compte Keycloak (compte pris dans le token). */
-    @PutMapping("/me/name")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('CLIENT')")
-    public void updateMyName(@Valid @RequestBody UpdateNameRequest request) {
-        userDirectoryService.updateOwnName(request);
     }
 
     /** Annuaire complet du cabinet : réservé à l'administrateur. */

@@ -1,7 +1,6 @@
 package com.legalflow.client.controller;
 
 import com.legalflow.client.domain.Client;
-import com.legalflow.client.integration.UserAccountNameSynchronizer;
 import com.legalflow.client.repository.ClientRepository;
 import com.legalflow.client.service.ClientService;
 import com.legalflow.client.config.ClientSecurityConfig;
@@ -22,13 +21,11 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,9 +46,6 @@ class ClientControllerTest {
 
     @MockBean
     private ClientRepository clientRepository;
-
-    @MockBean
-    private UserAccountNameSynchronizer nameSynchronizer;
 
     @Test
     void ownTenantCanReadClient() throws Exception {
@@ -121,7 +115,7 @@ class ClientControllerTest {
 
     @Test
     void duplicateEmailReturnsStandardConflictBodyBeforeInsert() throws Exception {
-        when(clientRepository.existsByEmail("duplicate@example.test")).thenReturn(true);
+        when(clientRepository.existsByLawFirmIdAndEmail(FIRM_A, "duplicate@example.test")).thenReturn(true);
 
         mockMvc.perform(post("/clients")
                         .with(staff(FIRM_A))
@@ -142,7 +136,7 @@ class ClientControllerTest {
 
     @Test
     void uniqueConstraintRaceReturnsTheSameConflictBodyAndLogsOriginalCause() throws Exception {
-        when(clientRepository.existsByEmail("race@example.test")).thenReturn(false);
+        when(clientRepository.existsByLawFirmIdAndEmail(FIRM_A, "race@example.test")).thenReturn(false);
         when(clientRepository.save(any(Client.class)))
                 .thenThrow(new DataIntegrityViolationException("unique email constraint"));
 
@@ -304,93 +298,6 @@ class ClientControllerTest {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/clients/{id}/lawyers", CLIENT_ID)
                         .with(clientUser(FIRM_A, CLIENT_ID)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
-
-        verify(clientRepository, never()).save(any(Client.class));
-    }
-
-    @Test
-    void clientUpdatesOnlyItsOwnNamePhoneAndAddress() throws Exception {
-        when(clientRepository.findById(CLIENT_ID)).thenReturn(Optional.of(client(FIRM_A)));
-        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // email et lawFirmId dans le corps doivent être ignorés
-        mockMvc.perform(put("/clients/me")
-                        .with(clientUser(FIRM_A, CLIENT_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"firstName":"  Sophie ","lastName":"Martin","phone":"   ","address":"12 rue des Lilas",
-                                 "email":"hacker@example.test","lawFirmId":"44444444-4444-4444-4444-444444444444"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.firstName").value("Sophie"))
-                .andExpect(jsonPath("$.lastName").value("Martin"))
-                .andExpect(jsonPath("$.phone").doesNotExist())
-                .andExpect(jsonPath("$.address").value("12 rue des Lilas"))
-                .andExpect(jsonPath("$.email").value("client@example.test"))
-                .andExpect(jsonPath("$.lawFirmId").value(FIRM_A.toString()));
-    }
-
-    @Test
-    void profileUpdateSynchronizesTheTrimmedNameToKeycloakAfterSaving() throws Exception {
-        when(clientRepository.findById(CLIENT_ID)).thenReturn(Optional.of(client(FIRM_A)));
-        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        mockMvc.perform(put("/clients/me")
-                        .with(clientUser(FIRM_A, CLIENT_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\"  Sophie \",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isOk());
-
-        verify(nameSynchronizer, times(1)).syncName("Sophie", "Martin");
-    }
-
-    @Test
-    void invalidOrForbiddenProfileUpdatesDoNotTouchKeycloak() throws Exception {
-        mockMvc.perform(put("/clients/me")
-                        .with(clientUser(FIRM_A, CLIENT_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\" \",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isBadRequest());
-        mockMvc.perform(put("/clients/me")
-                        .with(staff(FIRM_A))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isForbidden());
-
-        verify(nameSynchronizer, never()).syncName(any(), any());
-    }
-
-    @Test
-    void profileUpdateWithBlankNameIsRejected() throws Exception {
-        mockMvc.perform(put("/clients/me")
-                        .with(clientUser(FIRM_A, CLIENT_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\" \",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(clientRepository, never()).save(any(Client.class));
-    }
-
-    @Test
-    void staffCannotUseTheClientProfileEndpoint() throws Exception {
-        mockMvc.perform(put("/clients/me")
-                        .with(staff(FIRM_A))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isForbidden());
-
-        verify(clientRepository, never()).save(any(Client.class));
-    }
-
-    @Test
-    void clientCannotUpdateARecordOfAnotherTenant() throws Exception {
-        when(clientRepository.findById(CLIENT_ID)).thenReturn(Optional.of(client(FIRM_B)));
-
-        mockMvc.perform(put("/clients/me")
-                        .with(clientUser(FIRM_A, CLIENT_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}"))
-                .andExpect(status().isNotFound());
 
         verify(clientRepository, never()).save(any(Client.class));
     }

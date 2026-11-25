@@ -3,7 +3,6 @@ package com.legalflow.user.service;
 import com.legalflow.user.dto.CreateUserRequest;
 import com.legalflow.user.dto.CreatedUserResponse;
 import com.legalflow.user.dto.LawyerSummary;
-import com.legalflow.user.dto.UpdateNameRequest;
 import com.legalflow.user.dto.UserResponse;
 import com.legalflow.user.integration.ClientServiceOwnershipVerifier;
 import com.legalflow.user.keycloak.KeycloakAdminClient;
@@ -67,13 +66,6 @@ class UserDirectoryServiceTest {
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
-    }
-
-    @Test
-    void updateOwnNameTargetsOnlyTheAccountOfTheTokenAndTrimsTheNames() {
-        service.updateOwnName(new UpdateNameRequest("  Sophie ", " Martin  "));
-
-        verify(keycloak).updateNames(ADMIN_ID.toString(), "Sophie", "Martin");
     }
 
     @Test

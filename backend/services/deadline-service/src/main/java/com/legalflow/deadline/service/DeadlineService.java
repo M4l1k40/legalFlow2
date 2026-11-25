@@ -5,6 +5,8 @@ import com.legalflow.deadline.domain.DeadlineStatus;
 import com.legalflow.deadline.domain.Priority;
 import com.legalflow.deadline.dto.DeadlineRequest;
 import com.legalflow.deadline.integration.CaseServiceOwnershipVerifier;
+import com.legalflow.deadline.notification.EventNotificationPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.legalflow.deadline.repository.DeadlineRepository;
 import com.legalflow.deadline.security.TenantContext;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,13 @@ public class DeadlineService {
 
     private final DeadlineRepository deadlineRepository;
     private final CaseServiceOwnershipVerifier caseServiceOwnershipVerifier;
+    private EventNotificationPublisher eventPublisher;
+
+    /** Optionnel : absent des tests qui construisent le service à la main ; les événements sont alors ignorés. */
+    @Autowired(required = false)
+    public void setEventPublisher(EventNotificationPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public DeadlineService(DeadlineRepository deadlineRepository,
                           CaseServiceOwnershipVerifier caseServiceOwnershipVerifier) {
@@ -71,7 +80,11 @@ public class DeadlineService {
                 request.getPriority(),
                 DeadlineStatus.PENDING,
                 TenantContext.currentUserSubjectOrNull());
-        return deadlineRepository.save(deadline);
+        Deadline saved = deadlineRepository.save(deadline);
+        if (eventPublisher != null) {
+            eventPublisher.publishCreated(saved);
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)

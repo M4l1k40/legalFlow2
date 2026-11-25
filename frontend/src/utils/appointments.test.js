@@ -102,3 +102,20 @@ test('messages d\'erreur compréhensibles selon le statut HTTP', () => {
   assert.match(describeAppointmentError({ status: 503 }), /indisponible/);
   assert.equal(describeAppointmentError({ status: 418, message: 'Autre' }), 'Autre');
 });
+
+import { splitAppointments } from './appointments.js';
+
+test('splitAppointments sépare à venir et passés, triés', () => {
+  const now = new Date('2026-11-23T10:00:00');
+  const list = [
+    { id: 'a', status: 'SCHEDULED', dateTime: '2026-12-01T09:00:00' },
+    { id: 'b', status: 'SCHEDULED', dateTime: '2026-11-25T09:00:00' },
+    { id: 'c', status: 'CANCELLED', dateTime: '2026-11-30T09:00:00' },
+    { id: 'd', status: 'COMPLETED', dateTime: '2026-11-01T09:00:00' },
+    { id: 'e', status: 'SCHEDULED' }
+  ];
+  const { upcoming, past } = splitAppointments(list, now);
+  assert.deepEqual(upcoming.map((i) => i.id), ['b', 'a']);
+  assert.deepEqual(past.map((i) => i.id), ['c', 'd']);
+  assert.deepEqual(splitAppointments(null, now), { upcoming: [], past: [] });
+});

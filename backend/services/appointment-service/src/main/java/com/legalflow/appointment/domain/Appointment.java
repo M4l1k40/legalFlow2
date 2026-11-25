@@ -66,6 +66,10 @@ public class Appointment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** Date d'envoi du rappel (24 h avant). {@code null} : pas encore rappelé ; remis à zéro si le rendez-vous est déplacé. */
+    @Column(name = "reminder_sent_at")
+    private LocalDateTime reminderSentAt;
+
     protected Appointment() {
     }
 
@@ -94,10 +98,13 @@ public class Appointment {
     public String getLocation() { return location; }
     public String getNotes() { return notes; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getReminderSentAt() { return reminderSentAt; }
+    public void markReminderSent(LocalDateTime when) { this.reminderSentAt = when; }
     public void setStatus(AppointmentStatus status) { this.status = status; }
 
     /** Modification d'un rendez-vous : seuls la date, le type, le lieu et les notes peuvent changer. */
     public void reschedule(LocalDateTime dateTime, AppointmentType type, String location, String notes) {
+        this.reminderSentAt = null;
         this.dateTime = dateTime;
         this.type = type;
         this.location = location;

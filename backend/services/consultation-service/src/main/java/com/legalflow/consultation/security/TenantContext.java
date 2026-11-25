@@ -6,7 +6,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.UUID;
 
@@ -27,24 +26,9 @@ public final class TenantContext {
         return requireUuidClaim("lawFirmId");
     }
 
-/** Identifiant de la fiche client : utilise le claim 'clientId' s'il existe, sinon se rabat sur l'UUID Keycloak ('sub'). */
+    /** Identifiant de la fiche client liée à l'utilisateur CLIENT (claim posé par un administrateur dans Keycloak). */
     public static UUID requireClientId() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (!(authentication instanceof JwtAuthenticationToken jwtAuthenticationToken)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing authenticated JWT.");
-        }
-
-        Jwt jwt = jwtAuthenticationToken.getToken();
-        Object claim = jwt.getClaim("clientId");
-        if (claim != null && !claim.toString().isBlank()) {
-            try {
-                return UUID.fromString(claim.toString());
-            } catch (IllegalArgumentException ex) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "JWT claim 'clientId' is malformed.");
-            }
-        }
-
-        return requireUserId();
+        return requireUuidClaim("clientId");
     }
 
     public static String currentUserSubjectOrNull() {

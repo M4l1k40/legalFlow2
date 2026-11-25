@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: LegalFlow
+    folder: LegalFlow
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -8,44 +8,48 @@ import { apiRequest } from '../services/api';
  *   const { data, loading, error, refetch } = useApi('/api/cases');
  *
  * Options : { enabled: false } pour différer l'appel.
+ * L'état « chargement » est dérivé : une réponse n'est valable que pour la requête (endpoint + rechargement) qui l'a produite.
  */
 export default function useApi(endpoint, { enabled = true } = {}) {
   const { loading: authLoading, isAuthenticated } = useAuth();
-  const [state, setState] = useState({ data: null, loading: true, error: null });
   const [reloadKey, setReloadKey] = useState(0);
+  const [result, setResult] = useState({ key: null, data: null, error: null });
 
   const refetch = useCallback(() => setReloadKey((key) => key + 1), []);
 
+  const idle = !enabled || !endpoint;
+  const waitingForAuth = !idle && authLoading;
+  const unauthenticated = !idle && !authLoading && !isAuthenticated;
+  const requestKey = `${endpoint}#${reloadKey}`;
+
   useEffect(() => {
-    if (!enabled || !endpoint) {
-      setState((previous) => ({ ...previous, loading: false }));
-      return undefined;
-    }
-
-    // On attend que Keycloak ait fini son initialisation
-    if (authLoading) {
-      return undefined;
-    }
-
-    if (!isAuthenticated) {
-      setState({ data: null, loading: false, error: new Error('Utilisateur non authentifié') });
+    if (idle || authLoading || !isAuthenticated) {
       return undefined;
     }
 
     const controller = new AbortController();
-    setState((previous) => ({ ...previous, loading: true, error: null }));
 
     apiRequest(endpoint, { signal: controller.signal })
-      .then((data) => setState({ data, loading: false, error: null }))
+      .then((data) => setResult({ key: requestKey, data, error: null }))
       .catch((error) => {
         if (error.name === 'AbortError') {
           return;
         }
-        setState({ data: null, loading: false, error });
+        setResult({ key: requestKey, data: null, error });
       });
 
     return () => controller.abort();
-  }, [endpoint, enabled, authLoading, isAuthenticated, reloadKey]);
+  }, [endpoint, idle, authLoading, isAuthenticated, requestKey]);
 
-  return { ...state, refetch };
+  if (idle) return { data: null, loading: false, error: null, refetch };
+  if (waitingForAuth) return { data: null, loading: true, error: null, refetch };
+  if (unauthenticated) return { data: null, loading: false, error: new Error('Utilisateur non authentifié'), refetch };
+
+  const current = result.key === requestKey;
+  return {
+    data: current ? result.data : null,
+    loading: !current,
+    error: current ? result.error : null,
+    refetch
+  };
 }

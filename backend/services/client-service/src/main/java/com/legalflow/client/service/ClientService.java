@@ -1,7 +1,8 @@
 package com.legalflow.client.service;
 
 import com.legalflow.client.domain.Client;
-import com.legalflow.client.dto.ClientProfileRequest;
+import com.legalflow.client.integration.LawyerDirectoryVerifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.legalflow.client.repository.ClientRepository;
 import com.legalflow.client.security.TenantContext;
 import com.legalflow.client.exception.ClientConflictException;
@@ -23,6 +24,13 @@ public class ClientService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientService.class);
 
     private final ClientRepository clientRepository;
+    private LawyerDirectoryVerifier lawyerDirectory;
+
+    /** SEC-22 : annuaire des avocats du cabinet. Optionnel (absent des tests qui construisent le service à la main). */
+    @Autowired(required = false)
+    public void setLawyerDirectory(LawyerDirectoryVerifier lawyerDirectory) {
+        this.lawyerDirectory = lawyerDirectory;
+    }
 
     public ClientService(ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
@@ -80,12 +88,13 @@ public class ClientService {
         client.setLawFirmId(tenantId);
         if (TenantContext.isOfficeStaff()) {
             // L'administrateur ou la secrétaire désigne les avocats en charge (éventuellement aucun pour l'instant).
+            verifyLawyers(client.getLawyerIds());
             client.setLawyerIds(client.getLawyerIds());
         } else {
             // Un avocat qui crée un client en devient le responsable : toute valeur fournie dans la requête est ignorée.
             client.setLawyerIds(Set.of(TenantContext.requireUserId()));
         }
-        if (clientRepository.existsByEmail(client.getEmail())) {
+        if (clientRepository.existsByLawFirmIdAndEmail(tenantId, client.getEmail())) {
             throw duplicateEmailException(null);
         }
         try {
@@ -96,30 +105,16 @@ public class ClientService {
         }
     }
 
+    /** SEC-22 : chaque avocat désigné doit exister dans l'annuaire du cabinet de l'appelant. */
+    private void verifyLawyers(java.util.Collection<UUID> lawyerIds) {
+        if (lawyerDirectory != null) {
+            lawyerDirectory.verifyLawyersBelongToCurrentTenant(lawyerIds);
+        }
+    }
+
     private ClientConflictException duplicateEmailException(Throwable cause) {
         return new ClientConflictException("EMAIL_ALREADY_EXISTS",
                 "Un client avec cet email existe déjà.", cause);
-    }
-
-    /**
-     * Mise à jour de la fiche du client connecté. La fiche est toujours celle du claim clientId du token
-     * (jamais un identifiant fourni par l'appelant) et seuls nom, téléphone et adresse sont modifiables.
-     */
-    @Transactional
-    public Client updateCurrentClient(ClientProfileRequest request) {
-        Client client = findCurrentClient();
-        client.setFirstName(request.firstName().trim());
-        client.setLastName(request.lastName().trim());
-        client.setPhone(blankToNull(request.phone()));
-        client.setAddress(blankToNull(request.address()));
-        return clientRepository.save(client);
-    }
-
-    private static String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
     }
 
     @Transactional
@@ -128,6 +123,7 @@ public class ClientService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Only the office staff can assign lawyers to a client.");
         }
+        verifyLawyers(lawyerIds);
         Client client = findById(id);
         client.setLawyerIds(lawyerIds);
         return clientRepository.save(client);

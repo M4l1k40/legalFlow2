@@ -180,6 +180,8 @@ services:
     build:
       context: ../backend/services/judicial-service
       dockerfile: Dockerfile
+      additional_contexts:
+        events: ./legalflow-events
     container_name: legalflow-judicial-service
     depends_on:
       judicial-db:
@@ -236,13 +238,10 @@ services:
       SPRING_DATASOURCE_USERNAME: document_user
       SPRING_DATASOURCE_PASSWORD: document_password
       CASE_SERVICE_URL: http://case-service:8082
-      DOCUMENT_STORAGE_DIR: /data/documents
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/legalflow/protocol/openid-connect/certs
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/legalflow
     ports:
       - "8085:8085"
-    volumes:
-      - legalflow_document_files:/data/documents
     restart: unless-stopped
 
   deadline-db:
@@ -267,6 +266,8 @@ services:
     build:
       context: ../backend/services/deadline-service
       dockerfile: Dockerfile
+      additional_contexts:
+        events: ./legalflow-events
     container_name: legalflow-deadline-service
     depends_on:
       deadline-db:
@@ -311,6 +312,8 @@ services:
     build:
       context: ../backend/services/billing-service
       dockerfile: Dockerfile
+      additional_contexts:
+        events: ./legalflow-events
     container_name: legalflow-billing-service
     depends_on:
       billing-db:
@@ -398,6 +401,8 @@ services:
     build:
       context: ../backend/services/appointment-service
       dockerfile: Dockerfile
+      additional_contexts:
+        events: ./legalflow-events
     container_name: legalflow-appointment-service
     depends_on:
       appointment-db:
@@ -503,4 +508,3 @@ volumes:
   legalflow_consultation_postgres_data:
   legalflow_appointment_postgres_data:
   legalflow_notification_postgres_data:
-  legalflow_document_files:

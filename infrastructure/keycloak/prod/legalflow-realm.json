@@ -1,0 +1,105 @@
+{
+  "realm": "legalflow",
+  "displayName": "LegalFlow",
+  "displayNameHtml": "<b>LegalFlow</b>",
+  "enabled": true,
+  "accessTokenLifespan": 900,
+  "sslRequired": "external",
+  "loginTheme": "keycloak",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "defaultLocale": "en",
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Platform administrator"
+      },
+      {
+        "name": "LAWYER",
+        "description": "Law firm lawyer"
+      },
+      {
+        "name": "SECRETARY",
+        "description": "Law firm secretary"
+      },
+      {
+        "name": "CLIENT",
+        "description": "Client user"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "legalflow-frontend",
+      "name": "LegalFlow Frontend",
+      "description": "React SPA client",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "${LEGALFLOW_FRONTEND_URL}/*"
+      ],
+      "webOrigins": [
+        "${LEGALFLOW_FRONTEND_URL}"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "lawFirmId",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lawFirmId",
+            "jsonType.label": "String",
+            "aggregate.attrs": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "claim.name": "lawFirmId"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email",
+        "basic"
+      ]
+    },
+    {
+      "clientId": "legalflow-gateway",
+      "name": "LegalFlow Gateway",
+      "description": "Gateway service validating JWTs",
+      "secret": "${KC_SECRET_LEGALFLOW_GATEWAY}",
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "bearerOnly": false,
+      "redirectUris": [
+        "${LEGALFLOW_API_URL}/*"
+      ]
+    }
+  ],
+  "users": [],
+  "requiredActions": [],
+  "attributes": {
+    "frontendUrl": "http://localhost:8080"
+  },
+  "failureFactor": 5,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900
+}
