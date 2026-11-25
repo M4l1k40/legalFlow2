@@ -16,6 +16,10 @@ import LawyerDashboardPage from './pages/lawyer/LawyerDashboardPage';
 import LawyerClientsPage from './pages/lawyer/LawyerClientsPage';
 import LawyerCasesPage from './pages/lawyer/LawyerCasesPage';
 import LawyerConsultationsPage from './pages/lawyer/LawyerConsultationsPage';
+import ClientAppointmentsPage from './pages/client/ClientAppointmentsPage';
+import ClientDocumentsPage from './pages/client/ClientDocumentsPage';
+import ClientJudicialPage from './pages/client/ClientJudicialPage';
+import ClientPaymentsPage from './pages/client/ClientPaymentsPage';
 import ClientConsultationsPage from './pages/client/ClientConsultationsPage';
 import OfficeConsultationsPage from './pages/secretary/OfficeConsultationsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
@@ -26,6 +30,10 @@ import LawyerAppointmentsPage from './pages/lawyer/LawyerAppointmentsPage';
 import LawyerDeadlinesPage from './pages/lawyer/LawyerDeadlinesPage';
 import LawyerInvoicesPage from './pages/lawyer/LawyerInvoicesPage';
 import LawyerJudicialPage from './pages/lawyer/LawyerJudicialPage';
+import LawyerDocumentsPage from './pages/lawyer/LawyerDocumentsPage';
+import OfficeLawyersPage from './pages/secretary/OfficeLawyersPage';
+import OfficeCasesPage from './pages/secretary/OfficeCasesPage';
+import OfficePaymentsPage from './pages/secretary/OfficePaymentsPage';
 
 export default function App() {
   return (
@@ -43,10 +51,10 @@ export default function App() {
                 <Route path="profile" element={<ClientProfilePage />} />
                 <Route path="cases" element={<ClientCasesPage />} />
                 <Route path="consultations" element={<ClientConsultationsPage />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="client.nav.documents" />} />
-                <Route path="judicial" element={<PlaceholderPage titleKey="client.nav.judicial" />} />
-                <Route path="payments" element={<PlaceholderPage titleKey="client.nav.payments" />} />
-                <Route path="appointments" element={<PlaceholderPage titleKey="client.nav.appointments" />} />
+                <Route path="documents" element={<ClientDocumentsPage />} />
+                <Route path="judicial" element={<ClientJudicialPage />} />
+                <Route path="payments" element={<ClientPaymentsPage />} />
+                <Route path="appointments" element={<ClientAppointmentsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
               </Route>
             </Route>
@@ -61,7 +69,7 @@ export default function App() {
                 <Route path="deadlines" element={<LawyerDeadlinesPage />} />
                 <Route path="invoices" element={<LawyerInvoicesPage />} />
                 <Route path="appointments" element={<LawyerAppointmentsPage />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="lawyer.nav.documents" />} />
+                <Route path="documents" element={<LawyerDocumentsPage />} />
                 <Route path="consultations" element={<LawyerConsultationsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
               </Route>
@@ -71,13 +79,13 @@ export default function App() {
               <Route path="/secretary" element={<SecretaryLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<SecretaryDashboardPage />} />
-                <Route path="lawyers" element={<PlaceholderPage titleKey="secretary.nav.lawyers" />} />
+                <Route path="lawyers" element={<OfficeLawyersPage />} />
                 <Route path="clients" element={<LawyerClientsPage />} />
-                <Route path="cases" element={<PlaceholderPage titleKey="secretary.nav.cases" />} />
+                <Route path="cases" element={<OfficeCasesPage />} />
                 <Route path="consultations" element={<OfficeConsultationsPage />} />
-                <Route path="appointments" element={<PlaceholderPage titleKey="secretary.nav.appointments" />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="secretary.nav.documents" />} />
-                <Route path="payments" element={<PlaceholderPage titleKey="secretary.nav.payments" />} />
+                <Route path="appointments" element={<LawyerAppointmentsPage />} />
+                <Route path="documents" element={<LawyerDocumentsPage />} />
+                <Route path="payments" element={<OfficePaymentsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
               </Route>
             </Route>

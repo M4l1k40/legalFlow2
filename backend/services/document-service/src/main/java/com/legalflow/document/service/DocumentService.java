@@ -7,9 +7,12 @@ import com.legalflow.document.dto.DocumentStatsResponse;
 import com.legalflow.document.integration.CaseServiceOwnershipVerifier;
 import com.legalflow.document.repository.DocumentRepository;
 import com.legalflow.document.security.TenantContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -23,6 +26,10 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final CaseServiceOwnershipVerifier caseServiceOwnershipVerifier;
+
+    /** Absent dans les tests unitaires qui construisent le service à la main : on ne supprime alors aucun fichier. */
+    @Autowired(required = false)
+    private FileStorageService fileStorageService;
 
     public DocumentService(DocumentRepository documentRepository,
                            CaseServiceOwnershipVerifier caseServiceOwnershipVerifier) {
@@ -135,5 +142,23 @@ public class DocumentService {
     public void deleteDocument(UUID id) {
         Document document = getDocument(id);
         documentRepository.delete(document);
+        removeStoredFileAfterCommit(document.getStorageKey());
+    }
+
+    /** Le fichier n'est supprimé qu'une fois la suppression en base validée : un échec ne fait perdre aucun fichier. */
+    private void removeStoredFileAfterCommit(String storageKey) {
+        if (fileStorageService == null) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    fileStorageService.deleteQuietly(storageKey);
+                }
+            });
+        } else {
+            fileStorageService.deleteQuietly(storageKey);
+        }
     }
 }
