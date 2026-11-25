@@ -1,0 +1,379 @@
+# GÉNÉRÉ par infrastructure/kubernetes/generate.py — ne pas modifier à la main.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: keycloak-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: keycloak-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak-db
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: keycloak-db
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: keycloak
+        - name: POSTGRES_USER
+          value: keycloak
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: keycloak-db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - keycloak
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 70
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-db
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: keycloak-db
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: keycloak-db
+  ports:
+  - name: http
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: legalflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+        app.kubernetes.io/part-of: legalflow
+      annotations: {}
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:26.0.7
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: KC_DB
+          value: postgres
+        - name: KC_DB_URL
+          value: jdbc:postgresql://keycloak-db:5432/keycloak
+        - name: KC_DB_USERNAME
+          value: keycloak
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: keycloak-db-password
+        - name: KC_HTTP_ENABLED
+          value: 'true'
+        - name: KC_PROXY_HEADERS
+          value: xforwarded
+        - name: KC_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: KEYCLOAK_ISSUER_URI
+        - name: KC_HEALTH_ENABLED
+          value: 'true'
+        - name: LEGALFLOW_FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: LEGALFLOW_FRONTEND_URL
+        - name: LEGALFLOW_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: legalflow-config
+              key: LEGALFLOW_API_URL
+        - name: KC_SECRET_LEGALFLOW_GATEWAY
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: kc-secret-legalflow-gateway
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: keycloak-admin-user
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: keycloak-admin-password
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: false
+        resources:
+          requests:
+            cpu: 250m
+            memory: 768Mi
+          limits:
+            memory: 1536Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: realm
+          mountPath: /opt/keycloak/data/import
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          failureThreshold: 5
+        args:
+        - start
+        - --import-realm
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: realm
+        configMap:
+          name: legalflow-realm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:4.1-management-alpine
+        ports:
+        - containerPort: 5672
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: legalflow
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: rabbitmq-password
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/rabbitmq
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      securityContext:
+        fsGroup: 999
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: rabbitmq
+  ports:
+  - name: amqp
+    port: 5672
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/part-of: legalflow
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/part-of: legalflow
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        ports:
+        - containerPort: 9000
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: minio-root-user
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: legalflow-secrets
+              key: minio-root-password
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        args:
+        - server
+        - /data
+        - --console-address
+        - :9001
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: legalflow
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/part-of: legalflow
+spec:
+  selector:
+    app.kubernetes.io/name: minio
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000

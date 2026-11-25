@@ -1,91 +1,39 @@
 export default {
   appName: 'LegalFlow',
+  tagline: 'منصة إدارة مكاتب المحاماة',
   nav: {
-    dashboard: 'لوحة التحكم',
-    clients: 'العملاء',
-    cases: 'القضايا',
-    judicial: 'قضائي',
-    deadlines: 'المواعيد',
-    appointments: 'المواعيد',
-    documents: 'المستندات',
-    notifications: 'الإشعارات',
-    billing: 'الفوترة',
-    consultations: 'الاستشارات',
-    login: 'تسجيل الدخول'
+    dashboard: 'لوحة التحكم', clients: 'العملاء', cases: 'الملفات', judicial: 'القضاء',
+    deadlines: 'الآجال', appointments: 'المواعيد', documents: 'المستندات', notifications: 'الإشعارات',
+    invoices: 'الفواتير', billing: 'الفوترة', consultations: 'الاستشارات', lawyers: 'المحامون',
+    secretaries: 'السكرتارية', users: 'المستخدمون', payments: 'المدفوعات', profile: 'ملفي الشخصي', settings: 'الإعدادات'
   },
-  client: {
-    nav: {
-      dashboard: 'لوحة التحكم',
-      profile: 'ملفي الشخصي',
-      cases: 'دوراتي',
-      documents: 'مستنداتي',
-      judicial: 'إجراءاتـي',
-      payments: 'دفعاتي',
-      appointments: 'مواعيدي',
-      notifications: 'الإشعارات'
-    }
+  navClient: {
+    cases: 'ملفاتي', documents: 'مستنداتي', judicial: 'مساطري', payments: 'مدفوعاتي',
+    appointments: 'مواعيدي', consultations: 'استشاراتي'
   },
-  lawyer: {
-    nav: {
-      dashboard: 'لوحة التحكم',
-      clients: 'العملاء',
-      cases: 'القضايا',
-      judicial: 'القضائي',
-      deadlines: 'المواعيد',
-      appointments: 'المواعيد',
-      documents: 'المستندات',
-      consultations: 'الاستشارات',
-      notifications: 'الإشعارات'
-    }
-  },
-  secretary: {
-    nav: {
-      dashboard: 'لوحة التحكم',
-      lawyers: 'المحامون',
-      clients: 'العملاء',
-      cases: 'القضايا',
-      appointments: 'المواعيد',
-      documents: 'المستندات',
-      payments: 'الدفعات',
-      notifications: 'الإشعارات'
-    }
-  },
-  admin: {
-    nav: {
-      dashboard: 'لوحة التحكم',
-      users: 'المستخدمون',
-      lawyers: 'المحامون',
-      secretaries: 'السكرتيرات',
-      clients: 'العملاء',
-      cases: 'القضايا',
-      billing: 'الفوترة',
-      settings: 'الإعدادات'
-    }
-  },
+  navGroups: { overview: 'نظرة عامة', work: 'النشاط', finance: 'المالية', admin: 'الإدارة', account: 'الحساب' },
+  roles: { admin: 'مدير', lawyer: 'محامٍ', secretary: 'سكرتير', client: 'عميل' },
   common: {
-    search: 'بحث',
-    save: 'حفظ',
-    cancel: 'إلغاء',
-    viewAll: 'عرض الكل',
-    status: 'الحالة',
-    language: 'اللغة',
-    dashboard: 'لوحة التحكم'
+    search: 'انتقل إلى…', save: 'حفظ', cancel: 'إلغاء', viewAll: 'عرض الكل', status: 'الحالة',
+    language: 'اللغة', dashboard: 'لوحة التحكم', theme: 'المظهر', light: 'فاتح', dark: 'داكن',
+    loading: 'جارٍ التحميل…', menu: 'القائمة', close: 'إغلاق', noResult: 'لا نتائج', firm: 'المكتب'
   },
-  dashboard: {
-    title: 'نظرة عامة',
-    subtitle: 'نطاق المكتب',
-    cases: 'القضايا',
-    clients: 'العملاء',
-    upcomingDeadlines: 'المواعيد القريبة',
-    upcomingAppointments: 'المواعيد القادمة',
-    unreadNotifications: 'الإشعارات غير المقروءة',
-    summary: 'ملخص',
-    mockData: 'بيانات تجريبية'
-  },
+  shell: { quickNav: 'تنقل سريع', typeToSearch: 'اكتب اسم الصفحة…', account: 'حسابي' },
   auth: {
-    loginTitle: 'تسجيل الدخول',
-    loginSubtitle: 'الدخول إلى مساحة المكتب القانوني',
-    continue: 'متابعة',
-    logout: 'تسجيل الخروج'
+    loginTitle: 'تسجيل الدخول', loginSubtitle: 'ادخل إلى فضائك القانوني', continue: 'تسجيل الدخول',
+    logout: 'تسجيل الخروج', secure: 'اتصال آمن عبر Keycloak (OpenID Connect)',
+    noRole: 'حسابك موثّق لكنه لا يملك أي دور معروف في LegalFlow.'
+  },
+  login: {
+    heroTitle: 'كل ملف. كل أجل. كل مكتب — معزول ومحمي.',
+    heroText: 'العملاء والمساطر القضائية والآجال والمستندات والفوترة في منصة آمنة متعددة المكاتب.',
+    f1: 'عزل صارم للبيانات بين المكاتب', f2: 'تذكيرات بالآجال قبل 7 و3 و1 أيام',
+    f3: 'فضاءات مخصصة: محامٍ، سكرتير، عميل، مدير'
+  },
+  notFound: { title: 'الصفحة غير موجودة', text: 'هذه الصفحة غير موجودة أو تم نقلها.', back: 'العودة إلى الرئيسية' },
+  settings: {
+    title: 'الإعدادات', subtitle: 'حسابك وجلستك وتفضيلات العرض.',
+    account: 'الحساب', session: 'الجلسة', display: 'العرض', firmId: 'معرّف المكتب', roles: 'الأدوار',
+    name: 'الاسم', email: 'البريد الإلكتروني', username: 'اسم المستخدم', expires: 'انتهاء الرمز'
   }
 };

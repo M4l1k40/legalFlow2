@@ -83,23 +83,6 @@ class UserControllerRoleAccessTest {
         mockMvc.perform(get("/users/me").with(noRole())).andExpect(status().isForbidden());
     }
 
-    @Test
-    void onlyAClientCanSynchronizeItsOwnNameAndTheBodyIsValidated() throws Exception {
-        String body = "{\"firstName\":\"Sophie\",\"lastName\":\"Martin\"}";
-
-        mockMvc.perform(put("/users/me/name").with(as("CLIENT")).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isNoContent());
-        mockMvc.perform(put("/users/me/name").with(as("CLIENT")).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"firstName\":\" \",\"lastName\":\"Martin\"}")).andExpect(status().isBadRequest());
-
-        for (String role : new String[] {"ADMIN", "LAWYER", "SECRETARY"}) {
-            mockMvc.perform(put("/users/me/name").with(as(role)).contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isForbidden());
-        }
-        mockMvc.perform(put("/users/me/name").with(noRole()).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isForbidden());
-    }
-
     private static JwtRequestPostProcessor as(String role) {
         return jwt().authorities(new SimpleGrantedAuthority("ROLE_" + role))
                 .jwt(token -> token.claim("lawFirmId", FIRM_A.toString()));

@@ -36,7 +36,8 @@ const TABS = [
 
 const asList = (value) => (Array.isArray(value) ? value : []);
 
-export default function LawyerInvoicesPage() {
+/** `canCreate` : false pour la secrétaire (le serveur réserve création et modification à ADMIN et LAWYER). */
+export default function LawyerInvoicesPage({ canCreate = true }) {
   const isAdmin = Boolean(keycloak.hasRealmRole?.('ADMIN'));
   // Le cabinet vient exclusivement du jeton, jamais d'une saisie.
   const lawFirmId = keycloak.tokenParsed?.lawFirmId || keycloak.tokenParsed?.lawfirmid;
@@ -152,7 +153,7 @@ export default function LawyerInvoicesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={isAdmin ? 'Administration' : 'Espace avocat'}
+        eyebrow={isAdmin ? 'Administration' : canCreate ? 'Espace avocat' : 'Espace secrétariat'}
         title="Factures"
         description="Émettez vos factures, suivez leur règlement et relancez les paiements en retard."
         action={
@@ -160,9 +161,11 @@ export default function LawyerInvoicesPage() {
             <button type="button" className={secondaryButton} onClick={invoicesApi.refetch}>
               Actualiser
             </button>
-            <button type="button" className={primaryButton} onClick={openCreate}>
-              Nouvelle facture
-            </button>
+            {canCreate ? (
+              <button type="button" className={primaryButton} onClick={openCreate}>
+                Nouvelle facture
+              </button>
+            ) : null}
           </>
         }
       />
@@ -304,7 +307,7 @@ export default function LawyerInvoicesPage() {
                             <button type="button" className={secondaryButton} onClick={() => setExpandedId(expanded ? null : invoice.id)}>
                               {expanded ? 'Masquer' : 'Détails'}
                             </button>
-                            {actions.canEdit ? (
+                            {actions.canEdit && canCreate ? (
                               <button type="button" className={secondaryButton} disabled={Boolean(busy)} onClick={() => openEdit(invoice)}>
                                 Modifier
                               </button>

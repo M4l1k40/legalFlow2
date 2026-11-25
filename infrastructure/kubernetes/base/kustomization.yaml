@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: legalflow
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - databases.yaml
+  - infrastructure.yaml
+  - applications.yaml
+  - monitoring.yaml
+  - networking.yaml
+  - backups.yaml
+configMapGenerator:
+  - name: legalflow-realm
+    files:
+      - legalflow-realm.json
+generatorOptions:
+  disableNameSuffixHash: true
+# Remplacez le tag `latest` par le SHA/version publié par le workflow CD (cd.yml).
+images:
+  - name: ghcr.io/m4l1k40/lg2/gateway
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/client-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/case-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/appointment-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/judicial-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/document-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/deadline-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/notification-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/billing-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/consultation-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/user-service
+    newTag: latest
+  - name: ghcr.io/m4l1k40/lg2/frontend
+    newTag: latest

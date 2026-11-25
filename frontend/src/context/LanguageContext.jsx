@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getDirection, translations } from '../i18n';
+import { translatePhrase } from '../i18n/translate';
 
 const LanguageContext = createContext(null);
 
@@ -12,12 +13,16 @@ export function LanguageProvider({ children }) {
     document.documentElement.lang = language;
   }, [language]);
 
+  // tr(texte français) : traduit un libellé de page métier (voir i18n/phrases.ar.js) ; inconnu = inchangé.
+  const tr = useCallback((text) => translatePhrase(language, text), [language]);
+
   const value = useMemo(() => ({
     language,
     setLanguage,
     t: translations[language],
     dir: getDirection(language),
-  }), [language]);
+    tr,
+  }), [language, tr]);
 
   return (
     <LanguageContext.Provider value={value}>

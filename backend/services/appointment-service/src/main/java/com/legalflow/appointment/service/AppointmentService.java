@@ -6,6 +6,9 @@ import com.legalflow.appointment.dto.AppointmentRequest;
 import com.legalflow.appointment.dto.AppointmentResponse;
 import com.legalflow.appointment.dto.AppointmentUpdateRequest;
 import com.legalflow.appointment.integration.AppointmentOwnershipVerifier;
+import com.legalflow.appointment.integration.LawyerDirectoryVerifier;
+import com.legalflow.appointment.messaging.AppointmentEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.legalflow.appointment.repository.AppointmentRepository;
 import com.legalflow.appointment.security.TenantContext;
 import org.springframework.http.HttpStatus;
@@ -28,6 +31,20 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final AppointmentOwnershipVerifier ownershipVerifier;
+    private AppointmentEventPublisher eventPublisher;
+    private LawyerDirectoryVerifier lawyerDirectory;
+
+    /** SEC-15 : annuaire des avocats du cabinet. Optionnel (absent des tests unitaires qui construisent le service à la main). */
+    @Autowired(required = false)
+    public void setLawyerDirectory(LawyerDirectoryVerifier lawyerDirectory) {
+        this.lawyerDirectory = lawyerDirectory;
+    }
+
+    /** Optionnel : absent des tests qui construisent le service à la main ; les événements sont alors simplement ignorés. */
+    @Autowired(required = false)
+    public void setEventPublisher(AppointmentEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               AppointmentOwnershipVerifier ownershipVerifier) {
@@ -81,7 +98,11 @@ public class AppointmentService {
         }
         ownershipVerifier.verifyClientBelongsToCurrentTenant(request.getClientId());
         ownershipVerifier.verifyCaseBelongsToCurrentTenant(request.getCaseId());
-        // TODO: validate lawyerId once a user/lawyer directory service exists
+        if (lawyerDirectory != null && TenantContext.isOfficeStaff()) {
+            // SEC-15 : le personnel de bureau peut planifier pour n'importe quel avocat, mais celui-ci doit exister dans le
+            // cabinet. (Un avocat qui planifie pour lui-même est déjà contrôlé plus haut : lawyerId = son propre sub.)
+            lawyerDirectory.verifyLawyerBelongsToCurrentTenant(request.getLawyerId());
+        }
         Appointment appointment = new Appointment(
                 lawFirmId,
                 request.getCaseId(),
@@ -92,7 +113,11 @@ public class AppointmentService {
                 AppointmentStatus.SCHEDULED,
                 request.getLocation(),
                 request.getNotes());
-        return AppointmentResponse.from(appointmentRepository.saveAndFlush(appointment));
+        Appointment saved = appointmentRepository.saveAndFlush(appointment);
+        if (eventPublisher != null) {
+            eventPublisher.created(saved);
+        }
+        return AppointmentResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -115,7 +140,11 @@ public class AppointmentService {
                     "Only a scheduled appointment can be modified (current status: " + appointment.getStatus() + ").");
         }
         appointment.reschedule(request.getDateTime(), request.getType(), request.getLocation(), request.getNotes());
-        return AppointmentResponse.from(appointmentRepository.saveAndFlush(appointment));
+        Appointment saved = appointmentRepository.saveAndFlush(appointment);
+        if (eventPublisher != null) {
+            eventPublisher.updated(saved);
+        }
+        return AppointmentResponse.from(saved);
     }
 
     @Transactional
@@ -139,7 +168,11 @@ public class AppointmentService {
         }
 
         appointment.setStatus(nextStatus);
-        return AppointmentResponse.from(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        if (eventPublisher != null && nextStatus == AppointmentStatus.CANCELLED) {
+            eventPublisher.cancelled(saved);
+        }
+        return AppointmentResponse.from(saved);
     }
 
     @Transactional

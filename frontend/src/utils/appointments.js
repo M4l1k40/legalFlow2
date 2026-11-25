@@ -137,3 +137,13 @@ export function describeAppointmentError(error) {
         : error?.message || "L'action a échoué.";
   }
 }
+
+/** Sépare les rendez-vous en « à venir » (planifiés, dans le futur, du plus proche au plus lointain) et « passés / annulés ». */
+export function splitAppointments(list, now) {
+  const items = (Array.isArray(list) ? list : []).filter((item) => item && item.dateTime);
+  const isUpcoming = (item) => item.status === 'SCHEDULED' && new Date(item.dateTime) >= now;
+  return {
+    upcoming: items.filter(isUpcoming).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime)),
+    past: items.filter((item) => !isUpcoming(item)).sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
+  };
+}

@@ -2,7 +2,6 @@ package com.legalflow.case_service.controller;
 
 import com.legalflow.case_service.domain.CaseEvent;
 import com.legalflow.case_service.domain.LegalCase;
-import com.legalflow.case_service.dto.CaseStatusRequest;
 import com.legalflow.case_service.service.CaseService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -41,13 +40,6 @@ public class CaseController {
     @PreAuthorize("hasAnyRole('ADMIN','LAWYER','SECRETARY')")
     public LegalCase create(@Valid @RequestBody LegalCase legalCase) {
         return caseService.createCase(legalCase);
-    }
-
-    /** Avocat (ses dossiers) et administrateur : change le statut et l'inscrit dans l'historique. */
-    @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN','LAWYER')")
-    public LegalCase changeStatus(@PathVariable UUID id, @Valid @RequestBody CaseStatusRequest request) {
-        return caseService.changeStatus(id, request.getStatus(), request.getNote());
     }
 
     @GetMapping("/{id}/events")

@@ -72,7 +72,7 @@ jobs:
           cache: maven
           cache-dependency-path: '**/pom.xml'
       - name: Install shared library for dependent modules
-        if: contains(fromJSON('["case-service","consultation-service","notification-service"]'), matrix.module)
+        if: contains(fromJSON('["case-service","consultation-service","notification-service","appointment-service","billing-service","judicial-service","deadline-service"]'), matrix.module)
         working-directory: infrastructure/legalflow-events
         run: mvn -B install -DskipTests
       - name: Verify backend module
@@ -140,6 +140,36 @@ jobs:
       - run: npm run build
 
   # Exercise the Dockerized application end-to-end on pull requests to main.
+  kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pip install pyyaml
+      - name: Manifests générés à jour
+        run: |
+          python3 infrastructure/kubernetes/generate.py
+          git diff --exit-code -- infrastructure/kubernetes
+      - name: Validation des schémas Kubernetes
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary -ignore-missing-schemas $(ls infrastructure/kubernetes/base/*.yaml | grep -v kustomization)
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pgserver psycopg2-binary pyyaml
+      - name: Migrations Flyway rejouées sur PostgreSQL + cohérence entités/colonnes
+        run: python3 infrastructure/scripts/check-migrations.py
+      - name: Fichiers générés à jour (compose prod, realm prod, manifestes K8s)
+        run: |
+          python3 infrastructure/scripts/generate-prod-compose.py
+          python3 infrastructure/kubernetes/generate.py
+          git diff --exit-code -- infrastructure
+
   integration:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     needs:
@@ -207,6 +237,10 @@ jobs:
             case-service.contexts.events=./infrastructure/legalflow-events
             consultation-service.contexts.events=./infrastructure/legalflow-events
             notification-service.contexts.events=./infrastructure/legalflow-events
+            appointment-service.contexts.events=./infrastructure/legalflow-events
+            billing-service.contexts.events=./infrastructure/legalflow-events
+            judicial-service.contexts.events=./infrastructure/legalflow-events
+            deadline-service.contexts.events=./infrastructure/legalflow-events
 
       - name: Start Docker Compose stack
         run: docker compose -p infrastructure -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.user-service.yml up -d

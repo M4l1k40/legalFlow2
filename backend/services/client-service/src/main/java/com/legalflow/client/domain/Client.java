@@ -11,18 +11,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "clients")
+@Table(name = "clients", uniqueConstraints = {
+        @jakarta.persistence.UniqueConstraint(name = "uk_clients_law_firm_email", columnNames = {"law_firm_id", "email"})
+})
 public class Client {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @PrePersist
-    public void ensureId() {
-        if (this.id == null) {
-            this.id = UUID.randomUUID();
-        }
-    }
 
     @Column(nullable = false)
     private UUID lawFirmId;
@@ -37,7 +33,7 @@ public class Client {
 
     @Email
     @NotBlank
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
     @Column
@@ -60,10 +56,6 @@ public class Client {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
-    
     protected Client() {
     }
 

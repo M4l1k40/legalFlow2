@@ -83,7 +83,7 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         // Les requêtes preflight du navigateur n'envoient pas de token
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                        .pathMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         // Toute l'API exige un JWT valide (les services le revalident ensuite)
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().permitAll())

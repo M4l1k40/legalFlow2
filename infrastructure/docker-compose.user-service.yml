@@ -31,8 +31,3 @@ services:
       - user-service
     environment:
       USER_SERVICE_URL: http://user-service:8090
-
-  # Le client-service recopie le prénom et le nom d'un client vers son compte Keycloak via le user-service.
-  client-service:
-    environment:
-      USER_SERVICE_URL: http://user-service:8090

@@ -6,13 +6,18 @@ import com.legalflow.document.dto.DocumentRequest;
 import com.legalflow.document.dto.DocumentStatsResponse;
 import com.legalflow.document.integration.CaseServiceOwnershipVerifier;
 import com.legalflow.document.repository.DocumentRepository;
-import com.legalflow.document.security.TenantContext;
+import com.legalflow.document.storage.FileStorage;
+import com.legalflow.document.storage.StorageException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.io.InputStream;
+import com.legalflow.document.security.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -24,17 +29,108 @@ import java.util.UUID;
 @Service
 public class DocumentService {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
+    private static final long MAX_UPLOAD_BYTES = 25L * 1024 * 1024;
+
     private final DocumentRepository documentRepository;
     private final CaseServiceOwnershipVerifier caseServiceOwnershipVerifier;
-
-    /** Absent dans les tests unitaires qui construisent le service à la main : on ne supprime alors aucun fichier. */
-    @Autowired(required = false)
-    private FileStorageService fileStorageService;
 
     public DocumentService(DocumentRepository documentRepository,
                            CaseServiceOwnershipVerifier caseServiceOwnershipVerifier) {
         this.documentRepository = documentRepository;
         this.caseServiceOwnershipVerifier = caseServiceOwnershipVerifier;
+    }
+
+    private FileStorage fileStorage;
+
+    /** Injecté seulement quand un stockage est configuré (absent des tests de contrôleur qui n'en ont pas besoin). */
+    @Autowired(required = false)
+    public void setFileStorage(FileStorage fileStorage) {
+        this.fileStorage = fileStorage;
+    }
+
+    /** Fichier prêt à être servi : métadonnées + flux ouvert (à fermer par l'appelant). */
+    public record DownloadedFile(Document document, InputStream content) {
+    }
+
+    private FileStorage requireStorage() {
+        if (fileStorage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "File storage is not configured.");
+        }
+        return fileStorage;
+    }
+
+    /**
+     * Téléverse un fichier : la clé de stockage est générée ici, jamais fournie par l'appelant (SEC-11), et préfixée
+     * par le cabinet ; le téléchargement refuse toute clé qui ne porte pas ce préfixe.
+     */
+    @Transactional
+    public Document uploadDocument(MultipartFile file, UUID caseId, DocumentVisibility visibility, String description) {
+        UUID lawFirmId = TenantContext.requireLawFirmId();
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A non-empty file is required.");
+        }
+        if (file.getSize() > MAX_UPLOAD_BYTES) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "File exceeds 25 MB.");
+        }
+        caseServiceOwnershipVerifier.verifyCaseBelongsToCurrentTenant(caseId);
+
+        String originalName = sanitizeFileName(file.getOriginalFilename());
+        String contentType = file.getContentType() == null || file.getContentType().isBlank()
+                ? "application/octet-stream" : file.getContentType();
+        String storageKey = lawFirmId + "/" + caseId + "/" + UUID.randomUUID();
+
+        try (InputStream in = file.getInputStream()) {
+            requireStorage().put(storageKey, in, file.getSize(), contentType);
+        } catch (IOException | StorageException exception) {
+            log.error("Upload failed for case {}", caseId, exception);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "File storage is unavailable.");
+        }
+
+        Document document = new Document(lawFirmId, caseId, TenantContext.currentUserIdOrNull(), originalName,
+                contentType, file.getSize(), storageKey, description, visibility);
+        try {
+            return documentRepository.save(document);
+        } catch (RuntimeException exception) {
+            deleteQuietly(storageKey);
+            throw exception;
+        }
+    }
+
+    /** Télécharge un document : mêmes règles d'accès que la lecture, plus vérification du préfixe de cabinet de la clé. */
+    @Transactional(readOnly = true)
+    public DownloadedFile downloadDocument(UUID id) {
+        Document document = getDocument(id);
+        String prefix = TenantContext.requireLawFirmId() + "/";
+        if (document.getStorageKey() == null || !document.getStorageKey().startsWith(prefix)) {
+            // Métadonnées créées avant l'intégration MinIO (clé fournie par l'appelant) : aucun fichier servi.
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No file is stored for document: " + id);
+        }
+        try {
+            return new DownloadedFile(document, requireStorage().get(document.getStorageKey()));
+        } catch (StorageException exception) {
+            log.error("Download failed for document {}", id, exception);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "File storage is unavailable.");
+        }
+    }
+
+    static String sanitizeFileName(String raw) {
+        String name = raw == null ? "" : raw.replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1).replaceAll("[\\p{Cntrl}\"<>|:*?]", "_").trim();
+        if (name.isEmpty() || name.equals(".") || name.equals("..")) {
+            return "document";
+        }
+        return name.length() > 255 ? name.substring(name.length() - 255) : name;
+    }
+
+    private void deleteQuietly(String storageKey) {
+        try {
+            if (fileStorage != null) {
+                fileStorage.delete(storageKey);
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Could not clean up object {}", storageKey, exception);
+        }
     }
 
     @Transactional
@@ -142,23 +238,9 @@ public class DocumentService {
     public void deleteDocument(UUID id) {
         Document document = getDocument(id);
         documentRepository.delete(document);
-        removeStoredFileAfterCommit(document.getStorageKey());
-    }
-
-    /** Le fichier n'est supprimé qu'une fois la suppression en base validée : un échec ne fait perdre aucun fichier. */
-    private void removeStoredFileAfterCommit(String storageKey) {
-        if (fileStorageService == null) {
-            return;
-        }
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    fileStorageService.deleteQuietly(storageKey);
-                }
-            });
-        } else {
-            fileStorageService.deleteQuietly(storageKey);
+        String key = document.getStorageKey();
+        if (key != null && key.startsWith(TenantContext.requireLawFirmId() + "/")) {
+            deleteQuietly(key);
         }
     }
 }

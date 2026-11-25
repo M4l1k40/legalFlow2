@@ -19,25 +19,30 @@ Registre tenu pendant le développement : chaque point est décrit, classé, pui
 | SEC-07 | Notifications : le destinataire était le `sub` Keycloak alors que les événements visent un `clientId` ; les clients ne recevaient jamais leurs notifications. | Moyenne | Convention : `recipientId` = `clientId` (claim du JWT) pour le rôle CLIENT, `sub` pour le personnel ; JWT sans `clientId` ou mêlant CLIENT et rôle du personnel → `403` | tests `NotificationControllerTenantIsolationTest` |
 | SEC-08 | Keycloak en mode `dev-file` sans volume : utilisateurs, clients et réglages perdus à chaque recréation du conteneur (constaté deux fois). | Moyenne | Volume nommé `legalflow_keycloak_data` sur `/opt/keycloak/data`. Effet de bord : `legalflow-realm.json` n'est plus réimporté une fois le realm créé | `docker compose up -d --force-recreate keycloak` puis connexion des comptes de test |
 
-## 2. Points ouverts (non corrigés volontairement, à traiter plus tard)
+**Corrigées lors de la passe de complétion (nov. 2026)**
 
-| ID | Point | Gravité | À traiter avec |
+| ID | Faille | Gravité | Correction |
 |---|---|---|---|
-| SEC-09 | Email des clients unique **globalement** (`unique` + `existsByEmail`) : un cabinet peut deviner qu'un email existe chez un autre (erreur `409`). | Moyenne | Migration Flyway (unicité par cabinet) |
-| SEC-10 | Tribunaux et juges sans `lawFirmId` : partagés et modifiables entre cabinets par tout avocat ou administrateur. | Élevée | Migration Flyway (données propres à chaque cabinet) |
-| SEC-11 | Documents : `storageKey` fournie par l'appelant, aucun upload réel. Risque latent : une clé forgée pourrait viser le fichier d'un autre cabinet. | Moyenne | Étape 7 — documents réels (clé générée par le serveur) |
-| SEC-12 | Les ports de tous les services sont publiés sur la machine hôte : la gateway peut être contournée. | Moyenne | Étape 8 — durcissement |
-| SEC-13 | Secrets de développement par défaut : `admin/admin` (Keycloak), `replace-with-rabbitmq-password`, `dev-only-user-service-secret`, mots de passe de test égaux à l'identifiant. | Élevée (en production) | Étape 8 — secrets |
-| SEC-14 | `ddl-auto: update` : le schéma de base évolue automatiquement, sans migration versionnée. | Moyenne | Migration Flyway |
-| SEC-15 | Rendez-vous : le `lawyerId` n'est pas vérifié (`TODO` dans le code). | Moyenne | Brancher l'annuaire du `user-service` dans `appointment-service` |
-| SEC-16 | Le client Keycloak `legalflow-frontend` autorise le grant `password` (utilisé par les scripts de test) : les identifiants transitent par une application. | Moyenne | Étape 8 — désactiver hors développement |
-| SEC-17 | Aucune limitation de débit à la gateway, aucune détection de force brute sur les connexions. | Moyenne | Étape 8 — limitation de débit, `bruteForceProtected` |
-| SEC-18 | Les mots de passe temporaires sont renvoyés **une fois** dans la réponse de l'API : ils ne doivent jamais apparaître dans les journaux, et la connexion doit être chiffrée (HTTPS). | Faible | Étape 8 — HTTPS, journaux |
-| SEC-19 | `emailVerified` est forcé à `true` à la création d'un compte (aucun email de vérification). | Faible | Avec l'envoi d'emails (étape 4) |
+| SEC-09 | Email des clients unique globalement : un cabinet pouvait deviner qu'un email existe chez un autre. | Moyenne | **Corrigé** : unicité `(law_firm_id, email)` (migration `client-service` V2, `existsByLawFirmIdAndEmail`). |
+| SEC-10 | Tribunaux et juges partagés et modifiables entre cabinets. | Élevée | **Corrigé** : colonne `law_firm_id` (V2 `judicial-service`) ; liste/lecture limitées au cabinet + données partagées historiques (NULL) en **lecture seule** ; création et ajout de juges réservés au cabinet propriétaire. |
+| SEC-11 | Documents : `storageKey` fournie par l'appelant. | Moyenne | **Corrigé** : upload réel, clé générée par le serveur et préfixée par le cabinet ; téléchargement refusé pour toute clé hors du préfixe du cabinet. |
+| SEC-12 | Ports de tous les services publiés sur l'hôte. | Moyenne | **Corrigé** : `docker-compose.prod.yml` (généré) ne publie que gateway, keycloak, frontend ; Kubernetes : NetworkPolicies + Ingress seul point d'entrée. |
+| SEC-13 | Secrets de développement par défaut. | Élevée (prod) | **Corrigé en production** : variables obligatoires (`${VAR:?}`) en Compose prod, `secrets.example.yaml` / External Secrets en Kubernetes ; le realm de prod n'importe aucun utilisateur de test. Les valeurs de développement restent inchangées (volontairement). |
+| SEC-14 | `ddl-auto: update` : schéma modifié sans migration versionnée. | Moyenne | **Corrigé** : Flyway (V1 baseline + V2…), `ddl-auto: validate` par défaut (`JPA_DDL_AUTO` pour déroger), migrations rejouées sur PostgreSQL en CI. |
+| SEC-15 | Rendez-vous : `lawyerId` non vérifié. | Moyenne | **Corrigé** : le personnel de bureau ne peut planifier que pour un avocat de l'annuaire du cabinet (`user-service`). |
+| SEC-16 | Grant `password` activé sur le client public du frontend. | Moyenne | **Corrigé en production** : désactivé dans le realm de prod ; conservé en développement (scripts de test). |
+| SEC-17 | Pas de limitation de débit ni de détection de force brute. | Moyenne | **Corrigé** : `bruteForceProtected` (realm, déjà actif, durci en prod : 5 échecs) ; limitation de débit à l'Ingress Kubernetes (20 req/s/IP). Pas de limitation en Compose : à placer sur le reverse proxy. |
+| SEC-18 | Mots de passe temporaires : journaux et chiffrement. | Faible | **Vérifié** : aucune journalisation de mot de passe dans le `user-service` ; HTTPS imposé par l'Ingress (TLS) et `sslRequired: external`. |
+| SEC-22 | `lawyerIds` d'un client non validés. | Faible | **Corrigé** : validés contre l'annuaire du cabinet (`user-service`) à la création et à l'affectation. |
 
-| SEC-21 | File d'attente des consultations : tous les avocats du cabinet voient les demandes `PENDING` (non assignées) pour pouvoir les prendre en charge ; le nom du client reste masqué tant qu'il ne leur est pas confié. | Faible | Risque accepté (conception de la file d'accueil) |
-| SEC-22 | Les `lawyerIds` d'un client ne sont pas validés contre l'annuaire des avocats (l'administrateur peut saisir un UUID quelconque). | Faible | Valider via le `user-service` |
-| SEC-23 | Données existantes : après la migration, les anciens clients n'ont aucun avocat en charge et ne sont visibles que de l'administration et du secrétariat. | Info | Les confier depuis la page Clients (administrateur ou secrétaire) |
+## 2. Points ouverts / risques acceptés
+
+| ID | Point | Gravité | Statut |
+|---|---|---|---|
+| SEC-19 | `emailVerified` forcé à `true` à la création d'un compte. | Faible | **Risque accepté** : les comptes sont créés par un administrateur qui connaît la personne ; le mot de passe est temporaire (changement imposé à la première connexion). |
+| SEC-21 | Les avocats du cabinet voient les consultations `PENDING` non assignées (nom du client masqué). | Faible | Risque accepté (conception). |
+| SEC-23 | Anciens clients sans avocat en charge : visibles de l'administration et du secrétariat seulement. | Info | Les confier depuis la page Clients. |
+| SEC-24 | Tribunaux historiques (`law_firm_id` NULL) partagés entre cabinets, en lecture seule. | Info | Chaque cabinet crée désormais les siens ; supprimer les anciens quand plus utilisés. |
 
 ## 3. Constats fonctionnels (sans risque de sécurité)
 

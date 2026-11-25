@@ -1,0 +1,7 @@
+# GÉNÉRÉ par infrastructure/kubernetes/generate.py — ne pas modifier à la main.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: legalflow
+  labels:
+    pod-security.kubernetes.io/enforce: baseline

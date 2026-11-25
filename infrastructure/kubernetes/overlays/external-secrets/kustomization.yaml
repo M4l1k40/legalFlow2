@@ -1,0 +1,9 @@
+# Variante « secrets gérés par External Secrets Operator » (Vault, AWS Secrets Manager, GCP, Azure…).
+# Prérequis : l'opérateur (https://external-secrets.io) et un ClusterSecretStore nommé `legalflow-store`.
+#   kubectl apply -k infrastructure/kubernetes/overlays/external-secrets
+# Ne déployez PAS secrets.yaml avec cette variante : l'opérateur crée le Secret `legalflow-secrets`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - externalsecret.yaml

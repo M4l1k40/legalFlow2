@@ -35,6 +35,10 @@ public class Court {
     @Column(length = 1000)
     private String address;
 
+    /** Cabinet propriétaire. {@code null} : donnée de référence partagée, visible de tous en lecture seule (SEC-10). */
+    @Column(name = "law_firm_id")
+    private UUID lawFirmId;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -91,6 +95,14 @@ public class Court {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public UUID getLawFirmId() {
+        return lawFirmId;
+    }
+
+    public void setLawFirmId(UUID lawFirmId) {
+        this.lawFirmId = lawFirmId;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -1,0 +1,98 @@
+name: CD
+
+# Construit, scanne (Trivy) et publie les images sur GHCR à chaque tag `v*` (ou à la main).
+# Déploiement Kubernetes : job `deploy`, exécuté seulement si le secret KUBE_CONFIG est défini.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/m4l1k40/lg2
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: gateway,              context: backend/gateway }
+          - { name: client-service,       context: backend/services/client-service }
+          - { name: case-service,         context: backend/services/case-service,         events: true }
+          - { name: appointment-service,  context: backend/services/appointment-service, events: true }
+          - { name: judicial-service,     context: backend/services/judicial-service, events: true }
+          - { name: document-service,     context: backend/services/document-service }
+          - { name: deadline-service,     context: backend/services/deadline-service, events: true }
+          - { name: notification-service, context: backend/services/notification-service, events: true }
+          - { name: billing-service,      context: backend/services/billing-service, events: true }
+          - { name: consultation-service, context: backend/services/consultation-service, events: true }
+          - { name: user-service,         context: backend/services/user-service }
+          - { name: frontend,             context: frontend }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute tags
+        id: tags
+        run: |
+          version="${GITHUB_REF_NAME//\//-}"
+          echo "list=${IMAGE_PREFIX}/${{ matrix.name }}:${version},${IMAGE_PREFIX}/${{ matrix.name }}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "local=legalflow-scan/${{ matrix.name }}:ci" >> "$GITHUB_OUTPUT"
+      - name: Build (local, for scanning)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          build-contexts: ${{ matrix.events && 'events=./infrastructure/legalflow-events' || '' }}
+          load: true
+          tags: ${{ steps.tags.outputs.local }}
+          cache-from: type=gha,scope=cd-${{ matrix.name }}
+          cache-to: type=gha,scope=cd-${{ matrix.name }},mode=max,ignore-error=true
+      - name: Trivy scan (bloque sur HIGH/CRITICAL corrigeables)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.tags.outputs.local }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+      - name: Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          build-contexts: ${{ matrix.events && 'events=./infrastructure/legalflow-events' || '' }}
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          cache-from: type=gha,scope=cd-${{ matrix.name }}
+
+  deploy:
+    needs: images
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+      - name: Set image tags and apply
+        working-directory: infrastructure/kubernetes/base
+        run: |
+          tag="sha-${GITHUB_SHA::7}"
+          for n in gateway client-service case-service appointment-service judicial-service document-service deadline-service notification-service billing-service consultation-service user-service frontend; do
+            kustomize edit set image "ghcr.io/m4l1k40/lg2/${n}=ghcr.io/m4l1k40/lg2/${n}:${tag}"
+          done
+          kubectl apply -k .
+          kubectl -n legalflow rollout status deployment/gateway --timeout=300s

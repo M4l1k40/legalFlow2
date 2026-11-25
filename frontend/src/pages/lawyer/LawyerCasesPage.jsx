@@ -5,8 +5,6 @@ import SectionCard from '../../components/common/SectionCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import AsyncState from '../../components/common/AsyncState';
 import FormField, { inputClass } from '../../components/common/FormField';
-import { secondaryButton } from '../../components/common/buttonStyles';
-import CaseDetailPanel from '../../components/cases/CaseDetailPanel';
 import useApi from '../../hooks/useApi';
 import { api } from '../../services/api';
 import { keycloak } from '../../context/AuthContext';
@@ -56,7 +54,6 @@ export default function LawyerCasesPage() {
   const [submitError, setSubmitError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [expandedId, setExpandedId] = useState(null);
 
   const clients = useMemo(() => (Array.isArray(clientsApi.data) ? clientsApi.data : []), [clientsApi.data]);
 
@@ -270,7 +267,7 @@ export default function LawyerCasesPage() {
         }
       >
         <AsyncState
-          loading={casesApi.loading && !casesApi.data}
+          loading={casesApi.loading}
           error={casesApi.error}
           onRetry={casesApi.refetch}
           isEmpty={cases.length === 0}
@@ -281,39 +278,22 @@ export default function LawyerCasesPage() {
             {cases.map((item) => {
               const status = getStatusDisplay(item.status);
 
-              const expanded = expandedId === item.id;
-
               return (
-                <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800">{item.title}</div>
-                      <div className="text-sm text-slate-500">
-                        Réf. {item.reference} · Client : {clientNames[item.clientId] || 'Inconnu'} · Ouvert le{' '}
-                        {formatDate(item.createdAt)}
-                      </div>
-                      {item.description && !expanded ? (
-                        <div className="mt-1 line-clamp-2 text-sm text-slate-600">{item.description}</div>
-                      ) : null}
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-800">{item.title}</div>
+                    <div className="text-sm text-slate-500">
+                      Réf. {item.reference} · Client : {clientNames[item.clientId] || 'Inconnu'} · Ouvert le{' '}
+                      {formatDate(item.createdAt)}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                      <button
-                        type="button"
-                        className={secondaryButton}
-                        onClick={() => setExpandedId(expanded ? null : item.id)}
-                      >
-                        {expanded ? 'Masquer' : 'Détails'}
-                      </button>
-                    </div>
+                    {item.description ? (
+                      <div className="mt-1 line-clamp-2 text-sm text-slate-600">{item.description}</div>
+                    ) : null}
                   </div>
-                  {expanded ? (
-                    <CaseDetailPanel
-                      legalCase={item}
-                      clientName={clientNames[item.clientId]}
-                      onChanged={casesApi.refetch}
-                    />
-                  ) : null}
+                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </div>
               );
             })}
