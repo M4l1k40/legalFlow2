@@ -1,1 +1,5 @@
 e41bb4b473951b5da35ab0770f609c1f7c282ff6:backend/services/user-service/src/main/java/com/legalflow/user/service/UserDirectoryService.java:generic-api-key:35
+bb8aa16e1b38f15a13caecdc3c8ab24f1e29cc42:infrastructure/docker-compose.prod.yml:generic-api-key:26
+bb8aa16e1b38f15a13caecdc3c8ab24f1e29cc42:infrastructure/kubernetes/generate.py:generic-api-key:172
+bb8aa16e1b38f15a13caecdc3c8ab24f1e29cc42:infrastructure/kubernetes/base/infrastructure.yaml:generic-api-key:119
+bb8aa16e1b38f15a13caecdc3c8ab24f1e29cc42:infrastructure/scripts/generate-prod-compose.py:generic-api-key:89
