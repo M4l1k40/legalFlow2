@@ -1,3 +1,4 @@
+
 name: Security
 
 on:
@@ -10,47 +11,96 @@ permissions:
   contents: read
 
 jobs:
-  # Analyze Java/Kotlin and JavaScript/TypeScript with CodeQL.
   codeql:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        language:
-          - java-kotlin
-          - javascript-typescript
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+
     permissions:
       actions: read
       contents: read
       security-events: write
+
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
+
+      # Install the internal shared library first.
+      - name: Install LegalFlow shared library
+        if: matrix.language == 'java-kotlin'
+        run: |
+          mvn -B -f infrastructure/legalflow-events/pom.xml install -DskipTests
+
+      # Compile all independent Maven projects.
+      - name: Build backend Maven projects
+        if: matrix.language == 'java-kotlin'
+        shell: bash
+        run: |
+          projects=(
+            backend/gateway
+            backend/services/appointment-service
+            backend/services/billing-service
+            backend/services/case-service
+            backend/services/client-service
+            backend/services/consultation-service
+            backend/services/deadline-service
+            backend/services/document-service
+            backend/services/judicial-service
+            backend/services/notification-service
+            backend/services/user-service
+          )
+
+          for project in "${projects[@]}"; do
+            echo "Building $project"
+            mvn -B -f "$project/pom.xml" package -DskipTests
+          done
+
       - uses: github/codeql-action/analyze@v4
 
-  # Review dependency changes in pull requests and block high/critical advisories.
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       pull-requests: read
+
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
 
-  # Scan dependency manifests and configuration files for high/critical issues.
   trivy:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v7
+
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
@@ -60,16 +110,18 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-  # Detect secrets in the repository history.
   gitleaks:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       pull-requests: read
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
       - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
