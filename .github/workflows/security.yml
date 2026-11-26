@@ -11,7 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  # Analyze Java/Kotlin and JavaScript/TypeScript with CodeQL.
   codeql:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
@@ -21,7 +20,7 @@ jobs:
       matrix:
         include:
           - language: java-kotlin
-            build-mode: autobuild
+            build-mode: manual
           - language: javascript-typescript
             build-mode: none
 
@@ -33,14 +32,51 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set up Java 21
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      # Install the internal shared library first.
+      - name: Install LegalFlow shared library
+        if: matrix.language == 'java-kotlin'
+        run: |
+          mvn -B -f infrastructure/legalflow-events/pom.xml install -DskipTests
+
+      # Compile all independent Maven projects.
+      - name: Build backend Maven projects
+        if: matrix.language == 'java-kotlin'
+        shell: bash
+        run: |
+          projects=(
+            backend/gateway
+            backend/services/appointment-service
+            backend/services/billing-service
+            backend/services/case-service
+            backend/services/client-service
+            backend/services/consultation-service
+            backend/services/deadline-service
+            backend/services/document-service
+            backend/services/judicial-service
+            backend/services/notification-service
+            backend/services/user-service
+          )
+
+          for project in "${projects[@]}"; do
+            echo "Building $project"
+            mvn -B -f "$project/pom.xml" package -DskipTests
+          done
+
       - uses: github/codeql-action/analyze@v4
 
-  # Review dependency changes in pull requests.
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -56,7 +92,6 @@ jobs:
         with:
           fail-on-severity: high
 
-  # Scan dependencies and configuration files with Trivy.
   trivy:
     runs-on: ubuntu-latest
 
@@ -75,7 +110,6 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-  # Detect secrets in the repository history.
   gitleaks:
     runs-on: ubuntu-latest
 
